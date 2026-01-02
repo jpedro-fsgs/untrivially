@@ -4,7 +4,7 @@ This document outlines the project domains for the Untrivially application.
 
 ## Authentication
 
-All endpoints that require authentication must include a valid JWT in the `Authorization` header.
+Authentication is handled via an `HttpOnly` cookie (`untrivially_token`) containing a JWT, which is automatically sent by the browser on requests to the API after logging in. The server validates this token on protected routes.
 
 ## Domains
 
@@ -21,5 +21,3 @@ All endpoints that require authentication must include a valid JWT in the `Autho
     *   Request body: (same as POST /quizzes)
 *   **DELETE /quizzes/:id**
     *   Deletes a specific quiz by its ID.
-*   **`Untrivially-Token`**
-    *   All authenticated routes will receive a user through the `Untrivially-Token` token.

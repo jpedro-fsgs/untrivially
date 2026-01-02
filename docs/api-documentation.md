@@ -4,7 +4,7 @@ This document outlines the API endpoints for the Untrivially application.
 
 ## Authentication
 
-All endpoints that require authentication must include a valid JWT in the `Authorization` header.
+Endpoints that require authentication are protected and expect a JWT. This JWT is handled by the server via an `HttpOnly` cookie (`untrivially_token`) which is set during the OAuth login flow. API clients (like a web browser) should automatically include this cookie in subsequent requests.
 
 ## Endpoints
 

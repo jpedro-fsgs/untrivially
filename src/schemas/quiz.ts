@@ -1,10 +1,10 @@
 import { z } from 'zod'
 
 export const quizSchema = z.object({
-  id: z.string().uuid(),
+  id: z.uuid(),
   title: z.string(),
   questions: z.any(),
-  userId: z.string().uuid(),
+  userId: z.uuid(),
   createdAt: z.date(),
   updatedAt: z.date(),
 })

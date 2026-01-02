@@ -10,41 +10,41 @@ A aplicação segue uma **arquitetura em camadas (Layered Architecture)**, com u
 
 ## Fluxos de Dados Principais
 
-### 1. Fluxo de Autenticação e Criação de Usuário
+### 1. Fluxo de Autenticação e Criação de Usuário (OAuth2 Server-Side)
 
-Este fluxo descreve como um usuário é autenticado via Google OAuth e como sua conta é criada ou acessada no sistema.
+Este fluxo descreve como um usuário é autenticado via Google OAuth2 (fluxo de autorização server-side) e como sua conta é criada ou acessada no sistema.
 
-1.  **Requisição do Cliente**: O cliente faz uma requisição `POST /users` enviando um `access_token` do Google no corpo da requisição.
-2.  **Camada de Rota (`auth.ts`)**:
-    -   A rota `/users` recebe a requisição.
-    -   O corpo da requisição é validado usando Zod para garantir que o `access_token` foi fornecido.
-    -   A rota faz uma chamada `fetch` para a API do Google (`https://www.googleapis.com/oauth2/v2/userinfo`) para obter as informações do usuário, usando o `access_token` para autorização.
-3.  **Validação dos Dados do Google**:
-    -   Os dados retornados pelo Google são validados com um schema Zod (`userInfoSchema`) para garantir que contêm `id`, `email`, `name` e `picture`.
-4.  **Camada de Serviço (`userService.ts`)**:
-    -   A rota chama a função `getUserByEmail` para verificar se o usuário já existe no banco de dados.
-    -   Se o usuário não existe (`user` é `null`), a rota chama a função `createUser` para criar um novo registro de usuário com os dados obtidos do Google.
-5.  **Geração do Token JWT**:
-    -   Com o usuário (novo ou existente) em mãos, a rota utiliza o plugin `fastify-jwt` para gerar um token JWT.
-    -   O token contém `name` and `avatarUrl` no payload, o `id` do usuário como `sub` (subject), e uma data de expiração de 7 dias.
-6.  **Resposta ao Cliente**: A API retorna o token JWT para o cliente.
+1.  **Redirecionamento para o Google**: O cliente (navegador) acessa a rota `GET /login/google` na API.
+2.  **Início do Fluxo OAuth2**: A API, usando o plugin `@fastify/oauth2`, redireciona o navegador do usuário para a página de consentimento do Google.
+3.  **Callback do Google**: Após o usuário autorizar, o Google redireciona o navegador de volta para a API, na rota de callback `GET /auth/google/callback`, enviando um `code` (código de autorização) como parâmetro.
+4.  **Troca do Código pelo Token**:
+    -   A rota de callback (`auth.ts`) recebe o `code`.
+    -   Ela usa a função `app.googleOAuth2.getAccessTokenFromAuthorizationCodeFlow` para se comunicar diretamente com o Google e trocar o `code` por um `access_token`.
+5.  **Busca de Informações do Usuário**: Com o `access_token` em mãos, a API faz uma chamada `fetch` para a API do Google (`https://www.googleapis.com/oauth2/v2/userinfo`) para obter as informações do usuário (id, email, nome, etc.).
+6.  **Validação e Persistência do Usuário**:
+    -   Os dados retornados pelo Google são validados com um schema Zod (`userInfoSchema`).
+    -   A rota chama o `userService` para verificar se o usuário já existe (`getUserByEmail`). Se não existir, um novo usuário é criado (`createUser`).
+7.  **Geração do Token JWT e Resposta**:
+    -   Com os dados do usuário do banco de dados, a API gera um token JWT com validade de 7 dias, contendo o ID do usuário como `sub`.
+    -   **Em vez de retornar o token em um corpo JSON**, a API o define em um **cookie `HttpOnly`** chamado `untrivially_token`.
+    -   A API então redireciona o cliente para a aplicação frontend (ex: '/').
 
 ### 2. Fluxo de Acesso a Rotas Protegidas
 
-Este fluxo descreve como o token JWT é usado para proteger e acessar rotas.
+Este fluxo descreve como o token JWT, armazenado em um cookie, é usado para proteger e acessar rotas.
 
-1.  **Requisição do Cliente**: O cliente faz uma requisição a uma rota protegida (ex: `GET /me`) incluindo o token JWT no cabeçalho `Authorization` (ex: `Authorization: Bearer <token>`).
+1.  **Requisição do Cliente**: O cliente faz uma requisição a uma rota protegida (ex: `GET /me`). O navegador anexa automaticamente o cookie `untrivially_token` à requisição.
 2.  **Plugin de Autenticação (`authenticate.ts`)**:
     -   A rota protegida é configurada com um hook `onRequest` que chama o plugin `authenticate`.
-    -   O plugin `authenticate` é executado antes do handler da rota.
-    -   Ele utiliza a função `request.jwt.verify()` (do `fastify-jwt`) para validar o token JWT.
-3.  **Validação e Decodificação do Token**:
-    -   Se o token for inválido ou expirado, o `verify()` lança um erro, e a requisição é interrompida com um status de não autorizado (401).
-    -   Se o token for válido, o payload é decodificado, e as informações do usuário (como o `sub`, que é o ID do usuário) são anexadas ao objeto `request`.
+    -   O plugin `authenticate` executa a função `request.jwtVerify()`.
+3.  **Verificação do Token a partir do Cookie**:
+    -   A função `request.jwtVerify()` (do `@fastify/jwt`) é configurada (em `server.ts`) para ler e validar automaticamente o token JWT do cookie `untrivially_token`.
+    -   Se o token for inválido, ausente ou expirado, o `verify()` lança um erro, e a requisição é interrompida com um status de não autorizado (401).
+    -   Se o token for válido, o payload é decodificado, e suas informações são anexadas ao objeto `request.user`.
 4.  **Execução do Handler da Rota**:
     -   O controle é passado para o handler da rota (ex: o handler de `/me`).
-    -   O handler agora tem acesso aos dados do usuário autenticado através do objeto `request.user`.
-    -   O handler executa sua lógica e retorna a resposta apropriada (neste caso, os dados do usuário).
+    -   O handler agora tem acesso aos dados do usuário autenticado através de `request.user`.
+    -   Ele executa sua lógica e retorna a resposta apropriada.
 
 ## Decisões Arquiteturais Chave
 

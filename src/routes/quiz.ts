@@ -11,7 +11,7 @@ import {
 } from '../services/quizService'
 
 export async function quizRoutes(app: FastifyInstance) {
-  app.withTypeProvider<ZodTypeProvider>().get(
+  app.get(
     '/quizzes',
     {
       onRequest: [authenticate],
@@ -23,14 +23,14 @@ export async function quizRoutes(app: FastifyInstance) {
     },
   )
 
-  app.withTypeProvider<ZodTypeProvider>().get(
+  app.get(
     '/quizzes/:id',
     {
       onRequest: [authenticate],
     },
     async (request) => {
       const getQuizParams = z.object({
-        id: z.string().uuid(),
+        id: z.uuid(),
       })
 
       const { id } = getQuizParams.parse(request.params)
@@ -41,7 +41,7 @@ export async function quizRoutes(app: FastifyInstance) {
     },
   )
 
-  app.withTypeProvider<ZodTypeProvider>().post(
+  app.post(
     '/quizzes',
     {
       onRequest: [authenticate],
@@ -60,14 +60,14 @@ export async function quizRoutes(app: FastifyInstance) {
     },
   )
 
-  app.withTypeProvider<ZodTypeProvider>().put(
+  app.put(
     '/quizzes/:id',
     {
       onRequest: [authenticate],
     },
     async (request, reply) => {
       const getQuizParams = z.object({
-        id: z.string().uuid(),
+        id: z.uuid(),
       })
 
       const { id } = getQuizParams.parse(request.params)
@@ -85,14 +85,14 @@ export async function quizRoutes(app: FastifyInstance) {
     },
   )
 
-  app.withTypeProvider<ZodTypeProvider>().delete(
+  app.delete(
     '/quizzes/:id',
     {
       onRequest: [authenticate],
     },
     async (request, reply) => {
       const getQuizParams = z.object({
-        id: z.string().uuid(),
+        id: z.uuid(),
       })
 
       const { id } = getQuizParams.parse(request.params)
