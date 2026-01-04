@@ -37,9 +37,10 @@ const app = fastify({
 app.setValidatorCompiler(validatorCompiler);
 app.setSerializerCompiler(serializerCompiler);
 
-app.register(fastifyCors, {
-    origin: "*",
-});
+// app.register(fastifyCors, {
+//     origin: "http://localhost:3333",
+//     credentials: true,
+// });
 
 app.register(fastifySwagger, {
     swagger: {
@@ -58,15 +59,16 @@ app.register(fastifySwaggerUi, {
     routePrefix: "/docs",
 });
 
+
+
+app.register(fastifyCookie);
 app.register(fastifyJwt, {
     secret: "untrivially",
     cookie: {
         cookieName: "untrivially_token",
-        signed: false, // Disabling signing for simplicity, can be enabled in production
+        signed: false,
     },
 });
-
-app.register(fastifyCookie);
 
 app.register(oauthPlugin, {
     name: "googleOAuth2",
@@ -81,9 +83,11 @@ app.register(oauthPlugin, {
     startRedirectPath: "/login/google",
     callbackUri: "http://localhost:3333/auth/google/callback",
     cookie: {
-        secure: true,
-        sameSite: 'none'
-    }
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/", // ← ADICIONE ISTO
+        httpOnly: true, // ← BOA PRÁTICA
+    },
 });
 
 app.register(authRoutes);
@@ -94,5 +98,3 @@ app.listen({ port: 3333, host: "0.0.0.0" }).then(() => {
     app.log.info(`I'm making a note here: HUGE SUCCESS.`);
     app.log.info(`It's hard to overstate my satisfaction.`);
 });
-
-
