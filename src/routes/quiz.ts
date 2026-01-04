@@ -1,105 +1,133 @@
-import { FastifyInstance } from 'fastify'
-import { ZodTypeProvider } from 'fastify-type-provider-zod'
-import { z } from 'zod'
-import { authenticate } from '../plugins/authenticate'
+import { FastifyInstance } from "fastify";
+import { ZodTypeProvider } from "fastify-type-provider-zod";
+import { z } from "zod";
+import { authenticate } from "../plugins/authenticate";
 import {
-  createQuiz,
-  deleteQuiz,
-  getAllQuizzes,
-  getQuizById,
-  updateQuiz,
-} from '../services/quizService'
+    createQuiz,
+    deleteQuiz,
+    getAllQuizzes,
+    getQuizById,
+    updateQuiz,
+} from "../services/quizService";
+import {
+    quizSchema,
+    getQuizByIdParamsSchema,
+    createQuizBodySchema,
+    updateQuizParamsSchema,
+    updateQuizBodySchema,
+    deleteQuizParamsSchema,
+    getAllQuizzesResponseSchema,
+    getQuizByIdResponseSchema,
+    GetQuizByIdParams,
+    CreateQuizBody,
+    UpdateQuizParams,
+    UpdateQuizBody,
+    DeleteQuizParams,
+} from "../schemas/quiz";
 
 export async function quizRoutes(app: FastifyInstance) {
-  app.get(
-    '/quizzes',
-    {
-      onRequest: [authenticate],
-    },
-    async (request) => {
-      const quizzes = await getAllQuizzes(request.user.sub)
+    app.get(
+        "/quizzes",
+        {
+            schema: {
+                tags: ["quizzes"],
+                summary: "Get all quizzes for the authenticated user",
+                security: [{ cookieAuth: [] }],
+                response: {
+                    200: getAllQuizzesResponseSchema,
+                },
+            },
+            onRequest: [authenticate],
+        },
+        async (request) => {
+            const quizzes = await getAllQuizzes(request.user.sub);
+            return { quizzes };
+        }
+    );
 
-      return { quizzes }
-    },
-  )
+    app.get<{ Params: GetQuizByIdParams }>(
+        "/quizzes/:id",
+        {
+            schema: {
+                tags: ["quizzes"],
+                summary: "Get a quiz by ID",
+                security: [{ cookieAuth: [] }],
+                params: getQuizByIdParamsSchema,
+                response: {
+                    200: getQuizByIdResponseSchema,
+                },
+            },
+            onRequest: [authenticate],
+        },
+        async (request) => {
+            const { id } = request.params;
+            const quiz = await getQuizById(id);
+            return { quiz };
+        }
+    );
 
-  app.get(
-    '/quizzes/:id',
-    {
-      onRequest: [authenticate],
-    },
-    async (request) => {
-      const getQuizParams = z.object({
-        id: z.uuid(),
-      })
+    app.post<{ Body: CreateQuizBody }>(
+        "/quizzes",
+        {
+            schema: {
+                tags: ["quizzes"],
+                summary: "Create a new quiz",
+                security: [{ cookieAuth: [] }],
+                body: createQuizBodySchema,
+                response: {
+                    201: z.null(),
+                },
+            },
+            onRequest: [authenticate],
+        },
+        async (request, reply) => {
+            const { title, questions } = request.body;
+            await createQuiz(title, questions, request.user.sub);
+            return reply.status(201).send();
+        }
+    );
 
-      const { id } = getQuizParams.parse(request.params)
+    app.put<{ Params: UpdateQuizParams; Body: UpdateQuizBody }>(
+        "/quizzes/:id",
+        {
+            schema: {
+                tags: ["quizzes"],
+                summary: "Update a quiz",
+                security: [{ cookieAuth: [] }],
+                params: updateQuizParamsSchema,
+                body: updateQuizBodySchema,
+                response: {
+                    204: z.null(),
+                },
+            },
+            onRequest: [authenticate],
+        },
+        async (request, reply) => {
+            const { id } = request.params;
+            const { title, questions } = request.body;
+            await updateQuiz(id, title, questions);
+            return reply.status(204).send();
+        }
+    );
 
-      const quiz = await getQuizById(id)
-
-      return { quiz }
-    },
-  )
-
-  app.post(
-    '/quizzes',
-    {
-      onRequest: [authenticate],
-    },
-    async (request, reply) => {
-      const createQuizBody = z.object({
-        title: z.string(),
-        questions: z.any(),
-      })
-
-      const { title, questions } = createQuizBody.parse(request.body)
-
-      await createQuiz(title, questions, request.user.sub)
-
-      return reply.status(201).send()
-    },
-  )
-
-  app.put(
-    '/quizzes/:id',
-    {
-      onRequest: [authenticate],
-    },
-    async (request, reply) => {
-      const getQuizParams = z.object({
-        id: z.uuid(),
-      })
-
-      const { id } = getQuizParams.parse(request.params)
-
-      const updateQuizBody = z.object({
-        title: z.string(),
-        questions: z.any(),
-      })
-
-      const { title, questions } = updateQuizBody.parse(request.body)
-
-      await updateQuiz(id, title, questions)
-
-      return reply.status(204).send()
-    },
-  )
-
-  app.delete(
-    '/quizzes/:id',
-    {
-      onRequest: [authenticate],
-    },
-    async (request, reply) => {
-      const getQuizParams = z.object({
-        id: z.uuid(),
-      })
-
-      const { id } = getQuizParams.parse(request.params)
-
-      await deleteQuiz(id)
-
-      return reply.status(204).send()
-    },
-  )
+    app.delete<{ Params: DeleteQuizParams }>(
+        "/quizzes/:id",
+        {
+            schema: {
+                tags: ["quizzes"],
+                summary: "Delete a quiz",
+                security: [{ cookieAuth: [] }],
+                params: deleteQuizParamsSchema,
+                response: {
+                    204: z.null(),
+                },
+            },
+            onRequest: [authenticate],
+        },
+        async (request, reply) => {
+            const { id } = request.params;
+            await deleteQuiz(id);
+            return reply.status(204).send();
+        }
+    );
 }

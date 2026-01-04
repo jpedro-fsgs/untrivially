@@ -3,7 +3,9 @@ import {
     serializerCompiler,
     validatorCompiler,
     ZodTypeProvider,
-} from "fastify-type-provider-zod";
+    jsonSchemaTransform,
+}
+from "fastify-type-provider-zod";
 import { fastifyCors } from "@fastify/cors";
 import { fastifySwagger } from "@fastify/swagger";
 import { fastifySwaggerUi } from "@fastify/swagger-ui";
@@ -14,24 +16,36 @@ import oauthPlugin from "@fastify/oauth2";
 import { authRoutes } from "./routes/auth";
 import { quizRoutes } from "./routes/quiz";
 
+if (
+    [
+        process.env.NODE_ENV,
+        process.env.JWT_SECRET,
+        process.env.GOOGLE_CLIENT_ID,
+        process.env.GOOGLE_CLIENT_SECRET,
+        process.env.NODE_ENV,
+    ].includes(undefined)
+) {
+    throw new Error("Missing environment variables.");
+}
+
 // Determine environment
 export const isDev = process.env.NODE_ENV === "development";
 // Instantiate Fastify with proper logging configuration on development and production
 const app = fastify({
     logger: isDev
         ? {
-              transport: {
-                  target: "pino-pretty",
-                  options: {
-                      colorize: true,
-                      translateTime: true,
-                  },
-              },
-              level: "debug",
-          }
+            transport: {
+                target: "pino-pretty",
+                options: {
+                    colorize: true,
+                    translateTime: true,
+                },
+            },
+            level: "info",
+        }
         : {
-              level: "info",
-          },
+            level: "info",
+        },
 }).withTypeProvider<ZodTypeProvider>();
 
 app.setValidatorCompiler(validatorCompiler);
@@ -43,27 +57,38 @@ app.setSerializerCompiler(serializerCompiler);
 // });
 
 app.register(fastifySwagger, {
-    swagger: {
+    openapi: {
         info: {
             title: "Untrivially",
             description:
                 "An interactive quiz application that allows users to create, manage, and take quizzes.",
             version: "1.0.0",
         },
-        consumes: ["application/json"],
-        produces: ["application/json"],
+        components: {
+            securitySchemes: {
+                cookieAuth: {
+                    type: "apiKey",
+                    in: "cookie",
+                    name: "untrivially_token",
+                },
+            },
+        },
+        security: [
+            {
+                cookieAuth: [],
+            },
+        ],
     },
+    transform: jsonSchemaTransform,
 });
 
 app.register(fastifySwaggerUi, {
     routePrefix: "/docs",
 });
 
-
-
 app.register(fastifyCookie);
 app.register(fastifyJwt, {
-    secret: "untrivially",
+    secret: process.env.JWT_SECRET!,
     cookie: {
         cookieName: "untrivially_token",
         signed: false,
@@ -85,16 +110,21 @@ app.register(oauthPlugin, {
     cookie: {
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
-        path: "/", // ← ADICIONE ISTO
-        httpOnly: true, // ← BOA PRÁTICA
+        path: "/",
+        httpOnly: true,
     },
 });
 
 app.register(authRoutes);
 app.register(quizRoutes);
 
+app.get("/", async () => {
+    return { message: "Welcome to Untrivially API!" };
+});
+
 app.listen({ port: 3333, host: "0.0.0.0" }).then(() => {
     app.log.info(`This was a triumph.`);
     app.log.info(`I'm making a note here: HUGE SUCCESS.`);
     app.log.info(`It's hard to overstate my satisfaction.`);
 });
+
