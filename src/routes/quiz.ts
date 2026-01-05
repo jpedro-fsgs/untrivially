@@ -1,5 +1,4 @@
 import { FastifyInstance } from "fastify";
-import { ZodTypeProvider } from "fastify-type-provider-zod";
 import { z } from "zod";
 import { authenticate } from "../plugins/authenticate";
 import {
@@ -55,13 +54,19 @@ export async function quizRoutes(app: FastifyInstance) {
                 params: getQuizByIdParamsSchema,
                 response: {
                     200: getQuizByIdResponseSchema,
+                    404: z.object({ message: z.string() }),
                 },
             },
             onRequest: [authenticate],
         },
-        async (request) => {
+        async (request, reply) => {
             const { id } = request.params;
             const quiz = await getQuizById(id);
+
+            if (!quiz) {
+                return reply.status(404).send({ message: 'Quiz not found' });
+            }
+
             return { quiz };
         }
     );
@@ -81,8 +86,7 @@ export async function quizRoutes(app: FastifyInstance) {
             onRequest: [authenticate],
         },
         async (request, reply) => {
-            const { title, questions } = request.body;
-            await createQuiz(title, questions, request.user.sub);
+            await createQuiz(request.body, request.user.sub);
             return reply.status(201).send();
         }
     );
@@ -104,8 +108,7 @@ export async function quizRoutes(app: FastifyInstance) {
         },
         async (request, reply) => {
             const { id } = request.params;
-            const { title, questions } = request.body;
-            await updateQuiz(id, title, questions);
+            await updateQuiz(id, request.body);
             return reply.status(204).send();
         }
     );

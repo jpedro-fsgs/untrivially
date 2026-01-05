@@ -108,7 +108,7 @@ app.register(oauthPlugin, {
     startRedirectPath: "/login/google",
     callbackUri: "http://localhost:3333/auth/google/callback",
     cookie: {
-        secure: process.env.NODE_ENV === "production",
+        secure: !isDev,
         sameSite: "lax",
         path: "/",
         httpOnly: true,
@@ -124,7 +124,7 @@ app.get("/", async () => {
 
 app.listen({ port: 3333, host: "0.0.0.0" }).then(() => {
     app.log.info(`This was a triumph.`);
-    app.log.info(`I'm making a note here: HUGE SUCCESS.`);
-    app.log.info(`It's hard to overstate my satisfaction.`);
+    app.log.info(`I'm making a note here:`);
+    app.log.info(`HUGE SUCCESS.`);
 });
 
