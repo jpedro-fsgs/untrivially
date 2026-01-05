@@ -80,14 +80,14 @@ export async function quizRoutes(app: FastifyInstance) {
                 security: [{ cookieAuth: [] }],
                 body: createQuizBodySchema,
                 response: {
-                    201: z.null(),
+                    201: quizSchema,
                 },
             },
             onRequest: [authenticate],
         },
         async (request, reply) => {
-            await createQuiz(request.body, request.user.sub);
-            return reply.status(201).send();
+            const quiz = await createQuiz(request.body, request.user.sub);
+            return reply.status(201).send(quiz);
         }
     );
 
