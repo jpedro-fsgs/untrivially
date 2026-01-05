@@ -1,23 +1,45 @@
-# Untrivially - Domain Documentation
+# Untrivially - Domain Model Documentation
 
-This document outlines the project domains for the Untrivially application.
+This document outlines the core domain models for the Untrivially application, representing the central entities of the system.
 
-## Authentication
+## User Model
 
-Authentication is handled via an `HttpOnly` cookie (`untrivially_token`) containing a JWT, which is automatically sent by the browser on requests to the API after logging in. The server validates this token on protected routes.
+The `User` model represents an individual who can create and interact with quizzes.
 
-## Domains
+*   **`id`** (`String` / `uuid`): A unique identifier for the user.
+*   **`name`** (`String`): The user's full name.
+*   **`email`** (`String`): The user's email address, used as a unique identifier for login.
+*   **`avatarUrl`** (`String` | `null`): A URL pointing to the user's profile picture.
+*   **`createdAt`** (`DateTime`): The timestamp when the user was created.
 
-### Quizzes
+## Quiz Model
 
-*   **POST /quizzes**
-    *   The user will send a `JSON` with the quiz structure, it will be validated with `zod` and then the `questions` object will be saved as `JSONB` in the database.
-*   **GET /quizzes**
-    *   Returns all quizzes created by the authenticated user.
-*   **GET /quizzes/:id**
-    *   Returns a specific quiz by its ID.
-*   **PUT /quizzes/:id**
-    *   Updates a specific quiz by its ID.
-    *   Request body: (same as POST /quizzes)
-*   **DELETE /quizzes/:id**
-    *   Deletes a specific quiz by its ID.
+The `Quiz` model represents a collection of questions created by a user.
+
+*   **`id`** (`String` / `uuid`): A unique identifier for the quiz.
+*   **`title`** (`String`): The title of the quiz.
+*   **`userId`** (`String`): A foreign key linking to the `User` who created the quiz.
+*   **`createdAt`** (`DateTime`): The timestamp when the quiz was first created.
+*   **`updatedAt`** (`DateTime`): The timestamp of the last update to the quiz.
+*   **`questions`** (`Json`): A JSONB column in the database that stores the quiz's content. The backend validates and expects this field to be an array of `Question` objects.
+
+### Structure of the `questions` Field
+
+The `questions` JSON field contains an array of objects, where each object represents a single question and has the following structure:
+
+```typescript
+{
+  "questionId": "string",       // Unique ID for the question
+  "title": "string",            // The text of the question
+  "imageUrl": "string" | null,  // Optional URL for an image related to the question
+  "correctOptionId": "string",  // The `optionId` of the correct answer
+  "options": [                  // An array of 2 or more options
+    {
+      "optionId": "string",       // Unique ID for the option
+      "text": "string",           // The text of the option
+      "imageUrl": "string" | null // Optional URL for an image related to the option
+    }
+  ]
+}
+```
+This structure is enforced by the application's service layer and Zod schemas, ensuring data integrity even though the database schema itself is flexible with a `Json` type.

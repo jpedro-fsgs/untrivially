@@ -21,7 +21,7 @@ The project follows a modular structure, separating concerns into the following 
 
 *   `src/routes`: Defines the API endpoints.
 *   `src/services`: Contains the business logic.
-*   `src/domains`: Defines the data structures and validation schemas.
+*   `src/schemas`: Defines the data structures and validation schemas.
 *   `docs`: Contains the project documentation.
 *   `prisma`: Contains the database schema and migration files.
 
@@ -31,4 +31,4 @@ User authentication is handled through Google OAuth.
 
 ## 5. Database Schema
 
-The database schema is defined in `prisma/schema.prisma`. It includes tables for users and quizzes. The quiz table uses a JSONB column to store the quiz questions and options for flexibility.
+The database schema is defined in `prisma/schema.prisma`. It includes tables for users and quizzes. The quiz table uses a `Json` column (`JSONB` in PostgreSQL) to store the quiz content. The application layer enforces a strict structure on this field, expecting an array of question objects, where each question includes its title, a list of possible options, and a reference to the correct option's ID.

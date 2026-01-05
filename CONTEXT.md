@@ -8,7 +8,10 @@ O objetivo desta API é fornecer uma plataforma para criação e gerenciamento d
 
 -   **Usuário (User)**: Representa um participante da plataforma. Cada usuário é identificado por um email único e pode ter um nome e um avatar. Os usuários são os criadores dos quizzes.
 
--   **Quiz**: Representa um conjunto de perguntas. Cada quiz tem um título e uma estrutura de perguntas armazenada em formato JSON. Cada quiz está associado a um usuário criador.
+-   **Quiz**: Representa um conjunto de perguntas. Cada quiz tem um título e uma estrutura de perguntas armazenada em um campo JSON no banco de dados. Essa estrutura consiste em uma lista de objetos, onde cada objeto representa uma questão e contém:
+    - O texto da pergunta (`title`).
+    - Uma lista de opções de resposta (`options`), cada uma com seu texto e uma URL de imagem opcional.
+    - A referência para a opção correta (`correctOptionId`).
 
 -   **Autenticação**: O sistema utiliza autenticação baseada em JWT (JSON Web Token) para proteger as rotas. Um usuário precisa se autenticar para criar quizzes e acessar rotas protegidas.
 

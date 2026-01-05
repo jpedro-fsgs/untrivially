@@ -6,8 +6,8 @@ API RESTful para um sistema de quiz, construída com Node.js, Fastify e TypeScri
 
 ## Funcionalidades
 
--   **Autenticação de Usuários**: Sistema de login e registro de usuários.
--   **Gerenciamento de Quizzes**: Criação, busca e participação em quizzes.
+-   **Autenticação de Usuários**: Sistema de login e registro de usuários via Google OAuth2.
+-   **Gerenciamento de Quizzes**: Criação, busca, atualização e exclusão de quizzes. Os usuários podem construir quizzes com perguntas estruturadas, incluindo um título, múltiplas opções de resposta e a designação da resposta correta.
 
 ## Tecnologias
 

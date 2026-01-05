@@ -29,11 +29,18 @@ Este fluxo descreve como um usuário é autenticado via Google OAuth2 (fluxo de 
     -   **Em vez de retornar o token em um corpo JSON**, a API o define em um **cookie `HttpOnly`** chamado `untrivially_token`.
     -   A API então redireciona o cliente para a aplicação frontend (ex: '/').
 
-### 2. Fluxo de Acesso a Rotas Protegidas
+### 2. Fluxo de Criação de Quiz
+
+1.  **Requisição do Cliente**: O usuário envia uma requisição `POST /quizzes` com o título e uma lista de perguntas, cada uma contendo seu texto, opções e o índice da resposta correta.
+2.  **Validação**: A camada de rotas usa o Zod para validar se o corpo da requisição corresponde ao `createQuizBodySchema`.
+3.  **Processamento no Serviço**: O `quizService` recebe os dados. Ele transforma a entrada em um objeto JSON estruturado, gerando IDs únicos para cada pergunta (`questionId`) e cada opção (`optionId`), e determina o `correctOptionId` com base no índice fornecido.
+4.  **Persistência**: O serviço chama o `prisma.quiz.create`, que salva o novo quiz no banco de dados. O campo `questions` é armazenado como um tipo `Json`.
+
+### 3. Fluxo de Acesso a Rotas Protegidas
 
 Este fluxo descreve como o token JWT, armazenado em um cookie, é usado para proteger e acessar rotas.
 
-1.  **Requisição do Cliente**: O cliente faz uma requisição a uma rota protegida (ex: `GET /me`). O navegador anexa automaticamente o cookie `untrivially_token` à requisição.
+1.  **Requisição do Cliente**: O cliente faz uma requisição a uma rota protegida (ex: `GET /quizzes`). O navegador anexa automaticamente o cookie `untrivially_token` à requisição.
 2.  **Plugin de Autenticação (`authenticate.ts`)**:
     -   A rota protegida é configurada com um hook `onRequest` que chama o plugin `authenticate`.
     -   O plugin `authenticate` executa a função `request.jwtVerify()`.
@@ -42,9 +49,9 @@ Este fluxo descreve como o token JWT, armazenado em um cookie, é usado para pro
     -   Se o token for inválido, ausente ou expirado, o `verify()` lança um erro, e a requisição é interrompida com um status de não autorizado (401).
     -   Se o token for válido, o payload é decodificado, e suas informações são anexadas ao objeto `request.user`.
 4.  **Execução do Handler da Rota**:
-    -   O controle é passado para o handler da rota (ex: o handler de `/me`).
+    -   O controle é passado para o handler da rota (ex: o handler de `/quizzes`).
     -   O handler agora tem acesso aos dados do usuário autenticado através de `request.user`.
-    -   Ele executa sua lógica e retorna a resposta apropriada.
+    -   Ele executa sua lógica (chama o `quizService`) e retorna a resposta apropriada.
 
 ## Decisões Arquiteturais Chave
 
