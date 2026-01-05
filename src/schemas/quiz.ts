@@ -1,72 +1,73 @@
-import { z } from 'zod'
+import { z } from "zod";
 
 export const optionSchema = z.object({
-  text: z.string(),
-  imageUrl: z.url().optional(),
-})
+    text: z.string(),
+    imageUrl: z.url().optional(),
+});
 
 export const questionSchema = z
-  .object({
-    title: z.string(),
-    imageUrl: z.url().optional(),
-    options: z.array(optionSchema).min(2, 'Must have at least two options'),
-    correctOption: z.number().int().min(0),
-  })
-  .refine((data) => data.correctOption < data.options.length, {
-    message: 'Correct option index must be within the bounds of the options array',
-    path: ['correctOption'],
-  })
+    .object({
+        title: z.string(),
+        imageUrl: z.url().optional(),
+        options: z.array(optionSchema).min(2, "Must have at least two options"),
+        correctOption: z.number().int().min(0),
+    })
+    .refine((data) => data.correctOption < data.options.length, {
+        message:
+            "Correct option index must be within the bounds of the options array",
+        path: ["correctOption"],
+    });
 
 export const quizSchema = z.object({
-  id: z.uuid(),
-  title: z.string(),
-  questions: z.array(questionSchema),
-  userId: z.uuid(),
-  createdAt: z.date(),
-  updatedAt: z.date(),
-})
+    id: z.uuid(),
+    title: z.string(),
+    questions: z.array(questionSchema),
+    userId: z.uuid(),
+    createdAt: z.date(),
+    updatedAt: z.date(),
+});
 
-export type Quiz = z.infer<typeof quizSchema>
-export type Question = z.infer<typeof questionSchema>
-export type Option = z.infer<typeof optionSchema>
+export type Quiz = z.infer<typeof quizSchema>;
+export type Question = z.infer<typeof questionSchema>;
+export type Option = z.infer<typeof optionSchema>;
 
 // Request schemas
 export const getQuizByIdParamsSchema = z.object({
-  id: z.uuid(),
-})
+    id: z.uuid(),
+});
 
 export const createQuizBodySchema = z.object({
-  title: z.string(),
-  questions: z.array(questionSchema),
-})
+    title: z.string(),
+    questions: z.array(questionSchema),
+});
 
 export const updateQuizParamsSchema = z.object({
-  id: z.uuid(),
-})
+    id: z.uuid(),
+});
 
 export const updateQuizBodySchema = z.object({
-  title: z.string().optional(),
-  questions: z.array(questionSchema).optional(),
-})
+    title: z.string().optional(),
+    questions: z.array(questionSchema).optional(),
+});
 
 export const deleteQuizParamsSchema = z.object({
-  id: z.uuid(),
-})
+    id: z.uuid(),
+});
 
 // Response schemas
 export const getAllQuizzesResponseSchema = z.object({
-  quizzes: z.array(quizSchema),
-})
+    quizzes: z.array(quizSchema),
+});
 
 export const getQuizByIdResponseSchema = z.object({
-  quiz: quizSchema,
-})
+    quiz: quizSchema,
+});
 
 // Inferred types
-export type GetQuizByIdParams = z.infer<typeof getQuizByIdParamsSchema>
-export type CreateQuizBody = z.infer<typeof createQuizBodySchema>
-export type UpdateQuizParams = z.infer<typeof updateQuizParamsSchema>
-export type UpdateQuizBody = z.infer<typeof updateQuizBodySchema>
-export type DeleteQuizParams = z.infer<typeof deleteQuizParamsSchema>
-export type GetAllQuizzesResponse = z.infer<typeof getAllQuizzesResponseSchema>
-export type GetQuizByIdResponse = z.infer<typeof getQuizByIdResponseSchema>
+export type GetQuizByIdParams = z.infer<typeof getQuizByIdParamsSchema>;
+export type CreateQuizBody = z.infer<typeof createQuizBodySchema>;
+export type UpdateQuizParams = z.infer<typeof updateQuizParamsSchema>;
+export type UpdateQuizBody = z.infer<typeof updateQuizBodySchema>;
+export type DeleteQuizParams = z.infer<typeof deleteQuizParamsSchema>;
+export type GetAllQuizzesResponse = z.infer<typeof getAllQuizzesResponseSchema>;
+export type GetQuizByIdResponse = z.infer<typeof getQuizByIdResponseSchema>;

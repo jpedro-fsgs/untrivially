@@ -64,7 +64,7 @@ export async function quizRoutes(app: FastifyInstance) {
             const quiz = await getQuizById(id);
 
             if (!quiz) {
-                return reply.status(404).send({ message: 'Quiz not found' });
+                return reply.status(404).send({ message: "Quiz not found" });
             }
 
             return { quiz };
