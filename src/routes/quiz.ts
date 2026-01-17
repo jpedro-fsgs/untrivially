@@ -31,7 +31,7 @@ export async function quizRoutes(app: FastifyInstance) {
             schema: {
                 tags: ["quizzes"],
                 summary: "Get all quizzes for the authenticated user",
-                security: [{ cookieAuth: [] }],
+                security: [{ bearerAuth: [] }],
                 response: {
                     200: getAllQuizzesResponseSchema,
                 },
@@ -50,7 +50,7 @@ export async function quizRoutes(app: FastifyInstance) {
             schema: {
                 tags: ["quizzes"],
                 summary: "Get a quiz by ID",
-                security: [{ cookieAuth: [] }],
+                security: [{ bearerAuth: [] }],
                 params: getQuizByIdParamsSchema,
                 response: {
                     200: getQuizByIdResponseSchema,
@@ -77,7 +77,7 @@ export async function quizRoutes(app: FastifyInstance) {
             schema: {
                 tags: ["quizzes"],
                 summary: "Create a new quiz",
-                security: [{ cookieAuth: [] }],
+                security: [{ bearerAuth: [] }],
                 body: createQuizBodySchema,
                 response: {
                     201: quizSchema,
@@ -97,7 +97,7 @@ export async function quizRoutes(app: FastifyInstance) {
             schema: {
                 tags: ["quizzes"],
                 summary: "Update a quiz",
-                security: [{ cookieAuth: [] }],
+                security: [{ bearerAuth: [] }],
                 params: updateQuizParamsSchema,
                 body: updateQuizBodySchema,
                 response: {
@@ -127,7 +127,7 @@ export async function quizRoutes(app: FastifyInstance) {
             schema: {
                 tags: ["quizzes"],
                 summary: "Delete a quiz",
-                security: [{ cookieAuth: [] }],
+                security: [{ bearerAuth: [] }],
                 params: deleteQuizParamsSchema,
                 response: {
                     204: z.null(),

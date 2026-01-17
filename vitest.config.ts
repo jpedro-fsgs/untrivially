@@ -4,6 +4,6 @@ export default defineConfig({
   test: {
     globals: true,
     setupFiles: ['./tests/setup.ts'],
-    include: ['tests/userService.test.ts', 'tests/quizService.test.ts'],
+    include: ['tests/**/*.test.ts'],
   },
 })

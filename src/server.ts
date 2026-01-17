@@ -66,16 +66,16 @@ app.register(fastifySwagger, {
         },
         components: {
             securitySchemes: {
-                cookieAuth: {
-                    type: "apiKey",
-                    in: "cookie",
-                    name: "untrivially_token",
+                bearerAuth: {
+                    type: "http",
+                    scheme: "bearer",
+                    bearerFormat: "JWT",
                 },
             },
         },
         security: [
             {
-                cookieAuth: [],
+                bearerAuth: [],
             },
         ],
     },
@@ -89,10 +89,6 @@ app.register(fastifySwaggerUi, {
 app.register(fastifyCookie);
 app.register(fastifyJwt, {
     secret: process.env.JWT_SECRET!,
-    cookie: {
-        cookieName: "untrivially_token",
-        signed: false,
-    },
 });
 
 app.register(oauthPlugin, {
@@ -127,4 +123,3 @@ app.listen({ port: 3333, host: "0.0.0.0" }).then(() => {
     app.log.info(`I'm making a note here:`);
     app.log.info(`HUGE SUCCESS.`);
 });
-
