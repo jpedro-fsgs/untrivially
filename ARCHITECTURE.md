@@ -36,7 +36,16 @@ Este fluxo descreve como um usuário é autenticado via Google OAuth2 (fluxo de 
 3.  **Processamento no Serviço**: O `quizService` recebe os dados. Ele transforma a entrada em um objeto JSON estruturado, gerando IDs únicos para cada pergunta (`questionId`) e cada opção (`optionId`), e determina o `correctOptionId` com base no índice fornecido.
 4.  **Persistência**: O serviço chama o `prisma.quiz.create`, que salva o novo quiz no banco de dados. O campo `questions` é armazenado como um tipo `Json`.
 
-### 3. Fluxo de Acesso a Rotas Protegidas
+### 3. Fluxo de Modificação/Exclusão de Quiz
+
+1.  **Requisição do Cliente**: O usuário envia uma requisição `PUT /quizzes/:id` ou `DELETE /quizzes/:id`.
+2.  **Autenticação**: O plugin de autenticação verifica o JWT e anexa os dados do usuário (incluindo o `userId`) ao objeto `request`.
+3.  **Processamento no Serviço**: A rota chama o serviço correspondente (`updateQuiz` ou `deleteQuiz`), passando o `id` do quiz e o `userId` do usuário autenticado.
+4.  **Verificação de Propriedade e Persistência**:
+    -   O serviço utiliza o `userId` na cláusula `where` da operação do Prisma (`updateMany` ou `deleteMany`).
+    -   Isso garante que a operação só será executada se o `id` do quiz corresponder a um quiz que pertença ao `userId`. Se o usuário não for o proprietário, nenhuma linha será afetada, e a operação falhará silenciosamente (para `updateMany`) ou não fará nada.
+
+### 4. Fluxo de Acesso a Rotas Protegidas
 
 Este fluxo descreve como o token JWT, armazenado em um cookie, é usado para proteger e acessar rotas.
 

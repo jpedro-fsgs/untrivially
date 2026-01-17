@@ -2,7 +2,7 @@
 
 ## Objetivo Principal
 
-O objetivo desta API é fornecer uma plataforma para criação e gerenciamento de quizzes. A aplicação permite que usuários se cadastrem, criem seus próprios quizzes com perguntas e respostas, e (presumivelmente) participem de quizzes criados por outros usuários. O foco é ter uma API robusta, performática e bem estruturada para dar suporte a uma aplicação de quiz.
+O objetivo desta API é fornecer uma plataforma para criação e gerenciamento de quizzes. A aplicação permite que usuários se cadastrem, criem seus próprios quizzes com perguntas e respostas, e participem de quizzes criados por outros usuários. O foco é ter uma API robusta, performática e bem estruturada para dar suporte a uma aplicação de quiz.
 
 ## Conceitos de Domínio
 
@@ -20,4 +20,4 @@ O objetivo desta API é fornecer uma plataforma para criação e gerenciamento d
 -   **Sistema de Pontuação Complexo**: O schema atual não inclui um sistema de pontuação, ranking ou acompanhamento de progresso detalhado dos usuários nos quizzes.
 -   **Banco de Perguntas Compartilhado**: Não há um banco de perguntas centralizado que possa ser reutilizado em diferentes quizzes. As perguntas são definidas dentro de cada quiz.
 -   **Gerenciamento de Acesso Baseado em Papéis (RBAC)**: O sistema não parece ter diferentes níveis de acesso (como administrador, moderador, etc.). A lógica de permissão é simples, baseada na autenticidade do usuário.
--   **Busca ou Categorização Avançada de Quizzes**: Não há funcionalidades implementadas para buscar quizzes por categoria, dificuldade ou tags. A busca é (presumivelmente) simples, por título ou ID.
+-   **Busca ou Categorização Avançada de Quizzes**: Não há funcionalidades implementadas para buscar quizzes por categoria, dificuldade ou tags. A busca é simples, por título ou ID.

@@ -22,7 +22,6 @@ if (
         process.env.JWT_SECRET,
         process.env.GOOGLE_CLIENT_ID,
         process.env.GOOGLE_CLIENT_SECRET,
-        process.env.NODE_ENV,
     ].includes(undefined)
 ) {
     throw new Error("Missing environment variables.");

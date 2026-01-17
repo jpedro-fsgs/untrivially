@@ -52,7 +52,7 @@ Endpoints that require authentication are protected and expect a JWT. This JWT i
         *   `401 Unauthorized`: The user is not authenticated.
 
 *   **PUT /quizzes/:id**
-    *   Updates a specific quiz by its ID.
+    *   Updates a specific quiz by its ID. The user must be the owner of the quiz.
     *   Requires authentication.
     *   **Request Body**: The body can contain an optional `title` and/or `questions`. The `questions` must adhere to the full, validated schema, including `questionId` and `correctOptionId`.
         ```json
@@ -66,7 +66,7 @@ Endpoints that require authentication are protected and expect a JWT. This JWT i
         *   `401 Unauthorized`: The user is not authenticated.
 
 *   **DELETE /quizzes/:id**
-    *   Deletes a specific quiz by its ID.
+    *   Deletes a specific quiz by its ID. The user must be the owner of the quiz.
     *   Requires authentication.
     *   **Responses**:
         *   `204 No Content`: The quiz was deleted successfully.
