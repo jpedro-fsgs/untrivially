@@ -108,7 +108,15 @@ export async function quizRoutes(app: FastifyInstance) {
         },
         async (request, reply) => {
             const { id } = request.params;
-            await updateQuiz(id, request.body);
+            const { count } = await updateQuiz(
+                id,
+                request.body,
+                request.user.sub
+            );
+
+            if (count === 0) {
+                return reply.status(404).send({ message: "Quiz not found" });
+            }
             return reply.status(204).send();
         }
     );
@@ -129,7 +137,11 @@ export async function quizRoutes(app: FastifyInstance) {
         },
         async (request, reply) => {
             const { id } = request.params;
-            await deleteQuiz(id);
+            const { count } = await deleteQuiz(id, request.user.sub);
+
+            if (count === 0) {
+                return reply.status(404).send({ message: "Quiz not found" });
+            }
             return reply.status(204).send();
         }
     );

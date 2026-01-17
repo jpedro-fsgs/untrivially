@@ -79,19 +79,25 @@ export async function createQuiz(data: CreateQuizBody, userId: string) {
     });
 }
 
-export async function updateQuiz(id: string, data: UpdateQuizBody) {
-    return prisma.quiz.update({
+export async function updateQuiz(
+    id: string,
+    data: UpdateQuizBody,
+    userId: string
+) {
+    return prisma.quiz.updateMany({
         where: {
             id,
+            userId,
         },
         data,
     });
 }
 
-export async function deleteQuiz(id: string) {
-    return prisma.quiz.delete({
+export async function deleteQuiz(id: string, userId: string) {
+    return prisma.quiz.deleteMany({
         where: {
             id,
+            userId,
         },
     });
 }

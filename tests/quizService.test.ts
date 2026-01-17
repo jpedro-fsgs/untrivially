@@ -109,31 +109,80 @@ describe('Quiz Service', () => {
   })
 
   describe('updateQuiz', () => {
-    it('should update a quiz', async () => {
+    it('should update a quiz for the owning user', async () => {
       const updateData = { title: 'Updated Title' }
-      const updatedQuiz = { id: '1', title: 'Updated Title', userId, questions: [], subId: 'q1', createdAt: new Date(), updatedAt: new Date() }
-      prismaMock.quiz.update.mockResolvedValue(updatedQuiz)
+      prismaMock.quiz.updateMany.mockResolvedValue({ count: 1 })
 
-      const result = await updateQuiz('1', updateData)
+      const result = await updateQuiz('1', updateData, userId)
 
-      expect(result).toEqual(updatedQuiz)
-      expect(prismaMock.quiz.update).toHaveBeenCalledWith({
-        where: { id: '1' },
+      expect(result).toEqual({ count: 1 })
+      expect(prismaMock.quiz.updateMany).toHaveBeenCalledWith({
+        where: { id: '1', userId },
+        data: updateData,
+      })
+    })
+
+    it('should not update a quiz if it does not belong to the user', async () => {
+      const updateData = { title: 'Updated Title' }
+      const anotherUserId = 'user-456'
+      prismaMock.quiz.updateMany.mockResolvedValue({ count: 0 })
+
+      const result = await updateQuiz('1', updateData, anotherUserId)
+
+      expect(result).toEqual({ count: 0 })
+      expect(prismaMock.quiz.updateMany).toHaveBeenCalledWith({
+        where: { id: '1', userId: anotherUserId },
+        data: updateData,
+      })
+    })
+
+    it('should not update a quiz if quiz not found', async () => {
+      const updateData = { title: 'Updated Title' }
+      prismaMock.quiz.updateMany.mockResolvedValue({ count: 0 })
+
+      const result = await updateQuiz('nonexistent', updateData, userId)
+
+      expect(result).toEqual({ count: 0 })
+      expect(prismaMock.quiz.updateMany).toHaveBeenCalledWith({
+        where: { id: 'nonexistent', userId },
         data: updateData,
       })
     })
   })
 
   describe('deleteQuiz', () => {
-    it('should delete a quiz', async () => {
-      const deletedQuiz = { id: '1', title: 'Deleted Quiz', userId, questions: [], subId: 'q1', createdAt: new Date(), updatedAt: new Date() }
-      prismaMock.quiz.delete.mockResolvedValue(deletedQuiz)
+    it('should delete a quiz for the owning user', async () => {
+      prismaMock.quiz.deleteMany.mockResolvedValue({ count: 1 })
 
-      const result = await deleteQuiz('1')
+      const result = await deleteQuiz('1', userId)
 
-      expect(result).toEqual(deletedQuiz)
-      expect(prismaMock.quiz.delete).toHaveBeenCalledWith({
-        where: { id: '1' },
+      expect(result).toEqual({ count: 1 })
+      expect(prismaMock.quiz.deleteMany).toHaveBeenCalledWith({
+        where: { id: '1', userId },
+      })
+    })
+
+    it('should not delete a quiz if it does not belong to the user', async () => {
+      const anotherUserId = 'user-456'
+      prismaMock.quiz.deleteMany.mockResolvedValue({ count: 0 })
+
+      const result = await deleteQuiz('1', anotherUserId)
+
+      expect(result).toEqual({ count: 0 })
+      expect(prismaMock.quiz.deleteMany).toHaveBeenCalledWith({
+        where: { id: '1', userId: anotherUserId },
+      })
+    })
+
+    it('should not delete a quiz if quiz not found', async () => {
+      prismaMock.quiz.deleteMany.mockResolvedValue({ count: 0 })
+
+      const result = await deleteQuiz('nonexistent', userId)
+
+      expect(result).toEqual({ count: 0 })
+      expect(prismaMock.quiz.deleteMany).toHaveBeenCalledWith({
+        where: { id: 'nonexistent', userId },
+        data: undefined, // deleteMany does not take a 'data' argument.
       })
     })
   })
