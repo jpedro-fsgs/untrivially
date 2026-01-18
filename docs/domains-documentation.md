@@ -12,6 +12,18 @@ The `User` model represents an individual who can create and interact with quizz
 *   **`avatarUrl`** (`String` | `null`): A URL pointing to the user's profile picture.
 *   **`createdAt`** (`DateTime`): The timestamp when the user was created.
 
+## RefreshToken Model
+
+The `RefreshToken` model represents an authenticated user's session on a specific device. A user can have multiple refresh tokens, allowing them to be logged in on multiple devices simultaneously.
+
+*   **`id`** (`String` / `uuid`): A unique identifier for the token/session record.
+*   **`hashedToken`** (`String`): The SHA-256 hash of the opaque refresh token. This is what's stored to prevent session hijacking even if the database is compromised.
+*   **`userId`** (`String`): A foreign key linking to the `User` who owns this session.
+*   **`userAgent`** (`String`): The User-Agent string of the client, used for display in a "connected devices" list.
+*   **`ipAddress`** (`String`): The IP address from which the session was initiated.
+*   **`createdAt`** (`DateTime`): The timestamp when the session was created.
+*   **`updatedAt`** (`DateTime`): The timestamp of the last update, which corresponds to the last time the token was rotated.
+
 ## Quiz Model
 
 The `Quiz` model represents a collection of questions created by a user.

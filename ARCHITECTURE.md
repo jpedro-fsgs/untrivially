@@ -10,63 +10,57 @@ A aplicação segue uma **arquitetura em camadas (Layered Architecture)**, com u
 
 ## Fluxos de Dados Principais
 
-### 1. Fluxo de Autenticação e Criação de Usuário (OAuth2 Server-Side)
+### 1. Fluxo de Autenticação e Gerenciamento de Sessão
 
-Este fluxo descreve como um usuário é autenticado via Google OAuth2 (fluxo de autorização server-side) e como sua conta é criada ou acessada no sistema.
+Este fluxo descreve como um usuário é autenticado via Google OAuth2 e como sua sessão é estabelecida e gerenciada usando um sistema híbrido de tokens.
 
-1.  **Redirecionamento para o Google**: O cliente (navegador) acessa a rota `GET /login/google` na API.
-2.  **Início do Fluxo OAuth2**: A API, usando o plugin `@fastify/oauth2`, redireciona o navegador do usuário para a página de consentimento do Google.
-3.  **Callback do Google**: Após o usuário autorizar, o Google redireciona o navegador de volta para a API, na rota de callback `GET /auth/google/callback`, enviando um `code` (código de autorização) como parâmetro.
-4.  **Troca do Código pelo Token**:
-    -   A rota de callback (`auth.ts`) recebe o `code`.
-    -   Ela usa a função `app.googleOAuth2.getAccessTokenFromAuthorizationCodeFlow` para se comunicar diretamente com o Google e trocar o `code` por um `access_token`.
-5.  **Busca de Informações do Usuário**: Com o `access_token` em mãos, a API faz uma chamada `fetch` para a API do Google (`https://www.googleapis.com/oauth2/v2/userinfo`) para obter as informações do usuário (id, email, nome, etc.).
-6.  **Validação e Persistência do Usuário**:
-    -   Os dados retornados pelo Google são validados com um schema Zod (`userInfoSchema`).
-    -   A rota chama o `userService` para verificar se o usuário já existe (`getUserByEmail`). Se não existir, um novo usuário é criado (`createUser`).
-7.  **Geração do Token JWT e Resposta**:
-    -   Com os dados do usuário do banco de dados, a API gera um token JWT com validade de 7 dias, contendo o ID do usuário como `sub`.
-    -   **Em vez de retornar o token em um corpo JSON**, a API o define em um **cookie `HttpOnly`** chamado `untrivially_token`.
-    -   A API então redireciona o cliente para a aplicação frontend (ex: '/').
+1.  **Início do Fluxo OAuth2**: O cliente (navegador) inicia o fluxo de autenticação com o Google.
+2.  **Callback do Google**: Após o usuário autorizar, o Google redireciona o navegador de volta para a API, na rota de callback `GET /auth/google/callback`, enviando um `code`.
+3.  **Troca do Código pelo Token e Busca de Dados**: A API troca o `code` por um token de acesso do Google e usa-o para buscar as informações do perfil do usuário.
+4.  **Validação e Persistência do Usuário**: O `userService` verifica se o usuário já existe (`getUserByEmail`). Se não, um novo usuário é criado (`createUser`).
+5.  **Geração de Tokens e Início da Sessão**:
+    -   A API gera um **Access Token**: um JWT de curta duração (ex: 15 minutos) contendo os dados do usuário.
+    -   A API chama o `sessionService` para gerar um **Refresh Token**: um token opaco, de longa duração (ex: 30 dias), aleatório e criptograficamente seguro.
+    -   O hash do Refresh Token é armazenado em uma nova entrada na tabela `RefreshTokens` no banco de dados, junto com o `userId`, `User-Agent` (`deviceInfo`) e `IP Address`.
+6.  **Resposta ao Cliente**:
+    -   O **Access Token** é retornado no corpo da resposta JSON.
+    -   O **Refresh Token** é enviado ao cliente através de um cookie `HttpOnly`, seguro, chamado `untrivially_refresh_token`.
 
-### 2. Fluxo de Criação de Quiz
+### 2. Fluxo de Renovação de Sessão (Refresh Token Rotation)
 
-1.  **Requisição do Cliente**: O usuário envia uma requisição `POST /quizzes` com o título e uma lista de perguntas, cada uma contendo seu texto, opções e o índice da resposta correta.
-2.  **Validação**: A camada de rotas usa o Zod para validar se o corpo da requisição corresponde ao `createQuizBodySchema`.
-3.  **Processamento no Serviço**: O `quizService` recebe os dados. Ele transforma a entrada em um objeto JSON estruturado, gerando IDs únicos para cada pergunta (`questionId`) e cada opção (`optionId`), e determina o `correctOptionId` com base no índice fornecido.
-4.  **Persistência**: O serviço chama o `prisma.quiz.create`, que salva o novo quiz no banco de dados. O campo `questions` é armazenado como um tipo `Json`.
+Este fluxo é acionado quando o Access Token expira e o cliente precisa de um novo para continuar fazendo chamadas à API.
 
-### 3. Fluxo de Modificação/Exclusão de Quiz
+1.  **Requisição de Refresh**: O cliente faz uma requisição `POST /auth/refresh`. O navegador anexa automaticamente o cookie `untrivially_refresh_token`.
+2.  **Validação do Refresh Token**: O `sessionService` busca o hash do token recebido na tabela `RefreshTokens`.
+3.  **Detecção de Roubo/Reuso**: Se o hash do token não for encontrado, significa que o token é inválido, expirou, ou já foi usado em uma rotação anterior. O servidor retorna um erro `401 Unauthorized`, efetivamente encerrando a sessão potencialmente comprometida.
+4.  **Rotação de Tokens**: Se o token é encontrado e válido:
+    -   O servidor **deleta imediatamente** a entrada do token antigo do banco de dados para prevenir reuso.
+    -   Um **novo Access Token** (JWT, curta duração) é gerado.
+    -   Um **novo Refresh Token** (opaco, longa duração) é gerado e seu hash é salvo no banco de dados.
+5.  **Resposta ao Cliente**:
+    -   O novo Access Token é retornado no corpo da resposta JSON.
+    -   O novo Refresh Token é enviado ao cliente, substituindo o antigo no cookie `untrivially_refresh_token`.
 
-1.  **Requisição do Cliente**: O usuário envia uma requisição `PUT /quizzes/:id` ou `DELETE /quizzes/:id`.
-2.  **Autenticação**: O plugin de autenticação verifica o JWT e anexa os dados do usuário (incluindo o `userId`) ao objeto `request`.
-3.  **Processamento no Serviço**: A rota chama o serviço correspondente (`updateQuiz` ou `deleteQuiz`), passando o `id` do quiz e o `userId` do usuário autenticado.
-4.  **Verificação de Propriedade e Persistência**:
-    -   O serviço utiliza o `userId` na cláusula `where` da operação do Prisma (`updateMany` ou `deleteMany`).
-    -   Isso garante que a operação só será executada se o `id` do quiz corresponder a um quiz que pertença ao `userId`. Se o usuário não for o proprietário, nenhuma linha será afetada, e a operação falhará silenciosamente (para `updateMany`) ou não fará nada.
+### 3. Fluxo de Acesso a Rotas Protegidas
 
-### 4. Fluxo de Acesso a Rotas Protegidas
-
-Este fluxo descreve como o token JWT, armazenado em um cookie, é usado para proteger e acessar rotas.
-
-1.  **Requisição do Cliente**: O cliente faz uma requisição a uma rota protegida (ex: `GET /quizzes`). O navegador anexa automaticamente o cookie `untrivially_token` à requisição.
+1.  **Requisição do Cliente**: O cliente faz uma requisição a uma rota protegida (ex: `GET /quizzes`), incluindo o Access Token no cabeçalho `Authorization` como um `Bearer Token`. (`Authorization: Bearer <access_token>`).
 2.  **Plugin de Autenticação (`authenticate.ts`)**:
-    -   A rota protegida é configurada com um hook `onRequest` que chama o plugin `authenticate`.
-    -   O plugin `authenticate` executa a função `request.jwtVerify()`.
-3.  **Verificação do Token a partir do Cookie**:
-    -   A função `request.jwtVerify()` (do `@fastify/jwt`) é configurada (em `server.ts`) para ler e validar automaticamente o token JWT do cookie `untrivially_token`.
-    -   Se o token for inválido, ausente ou expirado, o `verify()` lança um erro, e a requisição é interrompida com um status de não autorizado (401).
-    -   Se o token for válido, o payload é decodificado, e suas informações são anexadas ao objeto `request.user`.
-4.  **Execução do Handler da Rota**:
-    -   O controle é passado para o handler da rota (ex: o handler de `/quizzes`).
-    -   O handler agora tem acesso aos dados do usuário autenticado através de `request.user`.
-    -   Ele executa sua lógica (chama o `quizService`) e retorna a resposta apropriada.
+    -   O hook `onRequest` da rota chama o plugin `authenticate`.
+    -   O plugin executa `request.jwtVerify()`, que lê e valida o token do cabeçalho `Authorization`.
+    -   Se o token for inválido (expirado, malformado), um erro `401` é retornado.
+    -   Se válido, o payload é decodificado e anexado a `request.user`.
+3.  **Execução do Handler da Rota**: Com o usuário autenticado, o handler da rota executa sua lógica de negócio.
+
+*(Os fluxos de criação, modificação e exclusão de quizzes permanecem os mesmos, mas agora dependem do Access Token enviado via `Bearer` token.)*
 
 ## Decisões Arquiteturais Chave
 
--   **Escolha do Fastify**: Fastify foi escolhido em vez de frameworks como Express.js, provavelmente devido ao seu foco em alta performance e baixo overhead, além de seu ecossistema de plugins robusto e suporte nativo a `async/await`.
--   **Uso de TypeScript**: A adoção do TypeScript impõe tipagem estática, o que melhora a manutenibilidade, a detecção de erros em tempo de desenvolvimento e a clareza do código, especialmente em uma arquitetura em camadas onde os contratos de dados entre camadas são cruciais.
--   **Prisma como ORM**: Prisma foi escolhido para a camada de acesso a dados. Ele oferece segurança de tipos de ponta a ponta (type-safety) e um cliente gerado que facilita a interação com o banco de dados, alinhando-se bem com o uso de TypeScript.
--   **Zod para Validação**: Em vez de usar validações manuais ou outras bibliotecas, Zod foi integrado com o Fastify (`fastify-type-provider-zod`). Isso centraliza a definição de schemas e garante que os dados que entram e saem da API são consistentes e previsíveis.
--   **Autenticação via Google (OAuth)**: Em vez de implementar um sistema de autenticação com senhas do zero, a aplicação delega a autenticação para o Google. Isso simplifica o desenvolvimento, aumenta a segurança (não armazena senhas) e melhora a experiência do usuário.
--   **JWT para Gerenciamento de Sessão**: Após a autenticação inicial, o estado da sessão é gerenciado por tokens JWT, o que torna a API *stateless* e facilita a escalabilidade.
+-   **Escolha do Fastify, TypeScript, Prisma, Zod**: Estas escolhas permanecem fundamentais para a performance, segurança de tipos e manutenibilidade da aplicação.
+-   **Autenticação via Google (OAuth)**: A delegação da autenticação primária ao Google continua sendo uma decisão chave para segurança e simplicidade.
+-   **Gerenciamento de Sessão Híbrido (Stateless + Stateful)**:
+    -   A arquitetura anterior, puramente com JWT, era *stateless*. A nova arquitetura é **híbrida**.
+    -   **Access Tokens (JWT)**: São *stateless*. O servidor não precisa consultar o banco para validá-los, o que os torna rápidos e eficientes para autorizar requisições. Sua curta duração minimiza o risco em caso de vazamento.
+    -   **Refresh Tokens (Opaque)**: São *stateful*. Estão armazenados no banco de dados e representam a sessão do usuário em um dispositivo. Esta abordagem permite:
+        -   **Revogação de Sessões**: Uma sessão pode ser invalidada a qualquer momento (ex: no logout) simplesmente removendo o token do banco.
+        -   **Gerenciamento Multi-dispositivo**: O usuário pode ter sessões ativas e independentes em vários dispositivos.
+        -   **Segurança Aprimorada**: A rotação de tokens e a detecção de reuso previnem o sequestro de sessão de longa duração, mesmo se um refresh token for interceptado.

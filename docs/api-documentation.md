@@ -4,15 +4,67 @@ This document outlines the API endpoints for the Untrivially application.
 
 ## Authentication
 
-Endpoints that require authentication are protected and expect a JWT. This JWT is handled by the server via an `HttpOnly` cookie (`untrivially_token`) which is set during the OAuth login flow. API clients (like a web browser) should automatically include this cookie in subsequent requests.
+The API uses a two-token system for authentication and session management to ensure both security and a good user experience.
 
-## Endpoints
+-   **Access Token**: A short-lived (15 minutes) JSON Web Token (JWT) that is used to access protected resources. It must be sent in the `Authorization` header of your requests using the `Bearer` scheme.
+    -   Example: `Authorization: Bearer <your_access_token>`
+-   **Refresh Token**: A long-lived (30 days), opaque (unreadable) token stored in a secure, `HttpOnly` cookie named `untrivially_refresh_token`. This token is used solely to obtain a new Access Token when the old one expires. Your client does not need to handle this token directly; the browser will manage it automatically.
 
-### Quizzes
+The general flow is:
+1.  Log in via the Google OAuth endpoint.
+2.  Receive an `accessToken` in the response body and a `refresh_token` in a cookie.
+3.  Use the `accessToken` to make API calls.
+4.  When the `accessToken` expires (you get a `401 Unauthorized`), call the `POST /auth/refresh` endpoint.
+5.  Receive a new `accessToken` and continue making API calls.
+
+## Authentication Endpoints
+
+*   **GET /me**
+    *   Returns the profile of the currently authenticated user.
+    *   Requires a valid Access Token.
+    *   **Responses**:
+        *   `200 OK`: Returns a user object.
+        *   `401 Unauthorized`: The Access Token is missing, invalid, or expired.
+
+*   **GET /auth/google/callback**
+    *   This is the callback endpoint for the Google OAuth2 flow. It is not meant to be called directly by the client application.
+    *   Upon successful authentication with Google, it creates a user session.
+    *   **Responses**:
+        *   `200 OK`: Returns an object containing the initial `accessToken` and `user` profile, while also setting the `untrivially_refresh_token` in an `HttpOnly` cookie.
+            ```json
+            {
+              "accessToken": "ey...",
+              "user": {
+                "id": "...",
+                "name": "...",
+                "email": "...",
+                "avatarUrl": "..."
+              }
+            }
+            ```
+
+*   **POST /auth/refresh**
+    *   Renews the user's session by providing a new Access Token. This endpoint uses Refresh Token Rotation for enhanced security.
+    *   It does not require an `Authorization` header. It relies on the `untrivially_refresh_token` cookie sent by the browser.
+    *   **Responses**:
+        *   `200 OK`: Returns an object containing the new `accessToken`. A new refresh token is also set in the cookie, replacing the old one.
+            ```json
+            {
+              "accessToken": "ey..."
+            }
+            ```
+        *   `401 Unauthorized`: The refresh token is missing, invalid, or has already been used (potential theft attempt). The user must log in again.
+
+*   **POST /auth/logout**
+    *   Logs the user out by invalidating their session on the server and clearing the refresh token cookie.
+    *   **Responses**:
+        *   `204 No Content`: The user was successfully logged out.
+
+## Quiz Endpoints
 
 *   **POST /quizzes**
     *   Creates a new quiz.
-    *   Requires authentication.
+    *   Requires authentication (valid Access Token).
     *   **Request Body**:
         ```json
         {
@@ -20,11 +72,9 @@ Endpoints that require authentication are protected and expect a JWT. This JWT i
           "questions": [
             {
               "title": "What is the fastest bird in the world?",
-              "imageUrl": "https://example.com/falcon.jpg",
               "options": [
                 { "text": "Ostrich" },
-                { "text": "Peregrine Falcon" },
-                { "text": "Hummingbird" }
+                { "text": "Peregrine Falcon" }
               ],
               "correctOptionIndex": 1
             }
@@ -33,7 +83,7 @@ Endpoints that require authentication are protected and expect a JWT. This JWT i
         ```
     *   **Responses**:
         *   `201 Created`: The quiz was created successfully.
-        *   `400 Bad Request`: The request body is malformed or fails validation (e.g., missing title, not enough options for a question).
+        *   `400 Bad Request`: The request body is malformed.
         *   `401 Unauthorized`: The user is not authenticated.
 
 *   **GET /quizzes**
@@ -54,12 +104,7 @@ Endpoints that require authentication are protected and expect a JWT. This JWT i
 *   **PUT /quizzes/:id**
     *   Updates a specific quiz by its ID. The user must be the owner of the quiz.
     *   Requires authentication.
-    *   **Request Body**: The body can contain an optional `title` and/or `questions`. The `questions` must adhere to the full, validated schema, including `questionId` and `correctOptionId`.
-        ```json
-        {
-          "title": "New Updated Title"
-        }
-        ```
+    *   **Request Body**: `{ "title": "New Updated Title" }`
     *   **Responses**:
         *   `204 No Content`: The quiz was updated successfully.
         *   `404 Not Found`: No quiz with the given ID was found.

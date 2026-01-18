@@ -5,8 +5,8 @@ import {
     createUser,
     getUserByEmail,
     getUserById,
-    updateUserRefreshToken,
 } from "../services/userService";
+import { sessionService } from "../services/sessionService";
 import { userSchema } from "../schemas/user";
 
 export async function authRoutes(app: FastifyInstance) {
@@ -16,7 +16,7 @@ export async function authRoutes(app: FastifyInstance) {
             schema: {
                 tags: ['authentication'],
                 summary: 'Get authenticated user details',
-                security: [{ bearerAuth: [] }], // Changed from cookieAuth
+                security: [{ bearerAuth: [] }],
                 response: {
                     200: z.object({
                         user: userSchema,
@@ -33,7 +33,6 @@ export async function authRoutes(app: FastifyInstance) {
             if (!user) {
                 return reply.status(404).send({ message: "User not found." });
             }
-            // Explicitly map to avoid leaking sensitive data like refreshToken
             return {
                 user: {
                     id: user.id,
@@ -50,7 +49,7 @@ export async function authRoutes(app: FastifyInstance) {
         {
             schema: {
                 tags: ['authentication'],
-                summary: 'Refresh access token',
+                summary: 'Refresh access token using rotation and theft detection',
                 response: {
                     200: z.object({
                         accessToken: z.string(),
@@ -62,36 +61,64 @@ export async function authRoutes(app: FastifyInstance) {
             }
         },
         async (request, reply) => {
-            try {
-                const refreshTokenCookie = request.cookies.untrivially_refresh_token;
-                if (!refreshTokenCookie) {
-                    return reply.status(401).send({ message: 'Refresh token not found.' });
-                }
+            const refreshTokenCookie = request.cookies.untrivially_refresh_token;
 
-                const decoded = app.jwt.verify<{ sub: string }>(refreshTokenCookie);
-                const user = await getUserById(decoded.sub);
+            if (!refreshTokenCookie) {
+                return reply.status(401).send({ message: 'Refresh token not found.' });
+            }
 
-                if (!user || user.refreshToken !== refreshTokenCookie) {
-                    return reply.status(401).send({ message: 'Invalid refresh token.' });
-                }
+            // Find the token in the database
+            const dbToken = await sessionService.findRefreshToken(refreshTokenCookie);
 
-                const newAccessToken = app.jwt.sign(
-                    {
-                        name: user.name,
-                        email: user.email,
-                        avatarUrl: user.avatarUrl,
-                    },
-                    {
-                        sub: user.id,
-                        expiresIn: "15m", // Short-lived access token
-                    }
-                );
-
-                return { accessToken: newAccessToken };
-
-            } catch (err) {
+            // If token is not found, it's invalid, expired, or has been used before (theft attempt)
+            if (!dbToken) {
+                // For extra security, you could clear the cookie to force logout
+                reply.clearCookie("untrivially_refresh_token", {
+                    path: "/",
+                    httpOnly: true,
+                    secure: process.env.NODE_ENV === "production",
+                    sameSite: "lax",
+                });
                 return reply.status(401).send({ message: 'Invalid or expired refresh token.' });
             }
+
+            // --- TOKEN ROTATION ---
+            // It's a valid token, so we'll use it once and then rotate it.
+
+            // 1. Delete the used token immediately
+            await sessionService.deleteRefreshToken(refreshTokenCookie);
+            
+            // 2. Create a new access token
+            const newAccessToken = app.jwt.sign(
+                {
+                    name: dbToken.user.name,
+                    email: dbToken.user.email,
+                    avatarUrl: dbToken.user.avatarUrl,
+                },
+                {
+                    sub: dbToken.user.id,
+                    expiresIn: "15m",
+                }
+            );
+
+            // 3. Create a new refresh token
+            const newRefreshToken = await sessionService.createRefreshToken(
+                dbToken.userId,
+                request.headers['user-agent'] || 'unknown',
+                request.ip
+            );
+
+            // 4. Set the new refresh token in the cookie
+            reply.setCookie("untrivially_refresh_token", newRefreshToken, {
+                path: "/",
+                httpOnly: true,
+                secure: process.env.NODE_ENV === "production",
+                sameSite: "lax",
+                expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
+            });
+
+
+            return { accessToken: newAccessToken };
         }
     )
 
@@ -135,7 +162,6 @@ export async function authRoutes(app: FastifyInstance) {
             });
 
             const userInfo = userInfoSchema.parse(userData);
-
             let user = await getUserByEmail(userInfo.email);
 
             if (!user) {
@@ -154,26 +180,24 @@ export async function authRoutes(app: FastifyInstance) {
                 },
                 {
                     sub: user.id,
-                    expiresIn: "15m", // Short-lived access token
+                    expiresIn: "15m",
                 }
             );
 
-            const refreshToken = app.jwt.sign({}, {
-                sub: user.id,
-                expiresIn: "30d" // Long-lived refresh token
+            const refreshToken = await sessionService.createRefreshToken(
+                user.id,
+                request.headers['user-agent'] || 'unknown',
+                request.ip
+            );
+
+            reply.setCookie("untrivially_refresh_token", refreshToken, {
+                path: "/",
+                httpOnly: true,
+                secure: process.env.NODE_ENV === "production",
+                sameSite: "lax",
+                expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
             });
 
-            await updateUserRefreshToken(user.id, refreshToken);
-
-            reply
-                .setCookie("untrivially_refresh_token", refreshToken, {
-                    path: "/",
-                    httpOnly: true,
-                    secure: process.env.NODE_ENV === "production",
-                    sameSite: "lax",
-                });
-
-            // Instead of redirecting, return tokens and user info
             return {
                 accessToken,
                 user: {
@@ -191,18 +215,18 @@ export async function authRoutes(app: FastifyInstance) {
         {
             schema: {
                 tags: ['authentication'],
-                summary: 'Logout user by clearing refresh token cookie',
-                security: [{ bearerAuth: [] }],
+                summary: 'Logout user by clearing refresh token cookie and DB entry',
                 response: {
                     204: z.null(),
-                    401: z.object({ message: z.string() })
                 },
             },
-            onRequest: [authenticate],
         },
         async (request, reply) => {
-            const userId = request.user.sub;
-            await updateUserRefreshToken(userId, null); // Clear refresh token in DB
+            const refreshTokenCookie = request.cookies.untrivially_refresh_token;
+
+            if (refreshTokenCookie) {
+                await sessionService.deleteRefreshToken(refreshTokenCookie);
+            }
 
             reply.clearCookie('untrivially_refresh_token', {
                 path: '/',
@@ -215,3 +239,4 @@ export async function authRoutes(app: FastifyInstance) {
         }
     );
 }
+

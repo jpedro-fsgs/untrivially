@@ -16,7 +16,7 @@ export async function getUserById(id: string) {
     });
 }
 
-export async function createUser(email: string, name: string, avatarUrl: string) {
+export async function createUser(email:string, name: string, avatarUrl: string) {
   return prisma.user.create({
     data: {
       email,
@@ -24,23 +24,4 @@ export async function createUser(email: string, name: string, avatarUrl: string)
       avatarUrl,
     },
   })
-}
-
-export async function updateUserRefreshToken(id: string, refreshToken: string | null) {
-    return prisma.user.update({
-        where: {
-            id,
-        },
-        data: {
-            refreshToken,
-        },
-    });
-}
-
-export async function getUserByRefreshToken(refreshToken: string) {
-    return prisma.user.findFirst({
-        where: {
-            refreshToken,
-        },
-    });
 }
