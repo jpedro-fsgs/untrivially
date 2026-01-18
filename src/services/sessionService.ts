@@ -34,7 +34,22 @@ class SessionService {
     })
   }
 
-  private hashToken = (token: string) => {
+  public getUserSessions = async (userId: string) => {
+    return prisma.refreshToken.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        userAgent: true,
+        ipAddress: true,
+        createdAt: true,
+        updatedAt: true,
+        hashedToken: true, // needed to identify the current session
+      },
+    })
+  }
+
+  public hashToken = (token: string) => {
     return crypto.createHash('sha256').update(token).digest('hex')
   }
 }

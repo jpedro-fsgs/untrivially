@@ -60,6 +60,33 @@ The general flow is:
     *   **Responses**:
         *   `204 No Content`: The user was successfully logged out.
 
+*   **GET /auth/sessions**
+    *   Returns all active sessions for the currently authenticated user. This can be used to display a list of devices where the user is logged in.
+    *   Requires a valid Access Token.
+    *   **Responses**:
+        *   `200 OK`: Returns an array of session objects, ordered by the most recently created. The `isCurrent` flag indicates the session from which the request was made.
+            ```json
+            [
+              {
+                "id": "cltpsx1af000108l5g1f3h9q0",
+                "userAgent": "Mozilla/5.0 (X11; Linux x86_64) ...",
+                "ipAddress": "127.0.0.1",
+                "createdAt": "2026-01-18T20:30:00.000Z",
+                "updatedAt": "2026-01-18T20:30:00.000Z",
+                "isCurrent": true
+              },
+              {
+                "id": "cltpswrcn000008l5bza7a1b2",
+                "userAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_2_1 like Mac OS X) ...",
+                "ipAddress": "192.168.1.100",
+                "createdAt": "2026-01-17T18:45:00.000Z",
+                "updatedAt": "2026-01-17T18:45:00.000Z",
+                "isCurrent": false
+              }
+            ]
+            ```
+        *   `401 Unauthorized`: The Access Token is missing, invalid, or expired.
+
 ## Quiz Endpoints
 
 *   **POST /quizzes**

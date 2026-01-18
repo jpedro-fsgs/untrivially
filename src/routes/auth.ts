@@ -238,5 +238,47 @@ export async function authRoutes(app: FastifyInstance) {
             return reply.status(204).send();
         }
     );
+
+    app.get('/auth/sessions', {
+        schema: {
+            tags: ['authentication'],
+            summary: 'Get all active sessions for the current user',
+            security: [{ bearerAuth: [] }],
+            response: {
+                200: z.array(z.object({
+                    id: z.string(),
+                    userAgent: z.string(),
+                    ipAddress: z.string(),
+                    createdAt: z.string().transform(val => new Date(val).toISOString()),
+                    updatedAt: z.string().transform(val => new Date(val).toISOString()),
+                    isCurrent: z.boolean(),
+                })),
+            },
+        },
+        onRequest: [authenticate],
+    }, async (request, reply) => {
+        const userId = request.user.sub;
+        const currentTokenCookie = request.cookies.untrivially_refresh_token;
+
+        if (!currentTokenCookie) {
+            // This case is unlikely if 'authenticate' middleware passed
+            return [];
+        }
+
+        const currentHashedToken = sessionService.hashToken(currentTokenCookie);
+        const sessions = await sessionService.getUserSessions(userId);
+
+        const sessionData = sessions.map(session => {
+            const { hashedToken, ...rest } = session;
+            return {
+                ...rest,
+                createdAt: session.createdAt.toISOString(),
+                updatedAt: session.updatedAt.toISOString(),
+                isCurrent: hashedToken === currentHashedToken,
+            };
+        });
+
+        return sessionData;
+    });
 }
 
