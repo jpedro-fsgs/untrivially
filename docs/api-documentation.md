@@ -89,8 +89,10 @@ The general flow is:
 
 ## Quiz Endpoints
 
+This section covers endpoints for creating, retrieving, and managing quizzes and their components.
+
 *   **POST /quizzes**
-    *   Creates a new quiz.
+    *   Creates a new quiz, including all its questions and answers, in a single atomic transaction.
     *   Requires authentication (valid Access Token).
     *   **Request Body**:
         ```json
@@ -99,17 +101,28 @@ The general flow is:
           "questions": [
             {
               "title": "What is the fastest bird in the world?",
+              "imageUrl": "https://example.com/falcon.jpg",
               "options": [
                 { "text": "Ostrich" },
-                { "text": "Peregrine Falcon" }
+                { "text": "Peregrine Falcon" },
+                { "text": "Swift" }
               ],
               "correctOptionIndex": 1
+            },
+            {
+              "title": "Which bird lays the largest egg?",
+              "options": [
+                { "text": "Eagle" },
+                { "text": "Hummingbird" },
+                { "text": "Ostrich" }
+              ],
+              "correctOptionIndex": 2
             }
           ]
         }
         ```
     *   **Responses**:
-        *   `201 Created`: The quiz was created successfully.
+        *   `201 Created`: The quiz was created successfully. Returns the full quiz object, including generated IDs.
         *   `400 Bad Request`: The request body is malformed.
         *   `401 Unauthorized`: The user is not authenticated.
 
@@ -117,7 +130,7 @@ The general flow is:
     *   Returns all quizzes created by the authenticated user.
     *   Requires authentication.
     *   **Responses**:
-        *   `200 OK`: Returns an object containing an array of quizzes.
+        *   `200 OK`: Returns an object containing an array of quizzes in the new relational format.
         *   `401 Unauthorized`: The user is not authenticated.
 
 *   **GET /quizzes/:id**
@@ -129,8 +142,8 @@ The general flow is:
         *   `401 Unauthorized`: The user is not authenticated.
 
 *   **PUT /quizzes/:id**
-    *   Updates a specific quiz by its ID. The user must be the owner of the quiz.
-    *   Requires authentication.
+    *   Updates a specific quiz's top-level properties (e.g., the title).
+    *   Requires authentication, and the user must be the owner of the quiz.
     *   **Request Body**: `{ "title": "New Updated Title" }`
     *   **Responses**:
         *   `204 No Content`: The quiz was updated successfully.
@@ -138,9 +151,93 @@ The general flow is:
         *   `401 Unauthorized`: The user is not authenticated.
 
 *   **DELETE /quizzes/:id**
-    *   Deletes a specific quiz by its ID. The user must be the owner of the quiz.
-    *   Requires authentication.
+    *   Deletes a specific quiz by its ID, including all its associated questions and answers (cascade delete).
+    *   Requires authentication, and the user must be the owner of the quiz.
     *   **Responses**:
         *   `204 No Content`: The quiz was deleted successfully.
         *   `404 Not Found`: No quiz with the given ID was found.
         *   `401 Unauthorized`: The user is not authenticated.
+
+## Question & Answer Management Endpoints
+
+These endpoints allow for granular management of questions and answers within an existing quiz. The user must be the owner of the parent quiz.
+
+### Questions
+
+*   **POST /quizzes/:quizId/questions**
+    *   Adds a new question to an existing quiz.
+    *   **Params**: `quizId` (UUID)
+    *   **Request Body**:
+        ```json
+        {
+          "title": "What is the largest mammal?",
+          "imageUrl": "https://example.com/whale.jpg",
+          "answers": [
+            { "text": "Elephant", "isCorrect": false },
+            { "text": "Blue Whale", "isCorrect": true },
+            { "text": "Giraffe", "isCorrect": false }
+          ]
+        }
+        ```
+    *   **Responses**:
+        *   `201 Created`: Returns `{ "question": ... }` with the newly created question object.
+        *   `404 Not Found`: The specified quiz was not found or is not owned by the user.
+
+*   **PATCH /quizzes/:quizId/questions/:questionId**
+    *   Updates the properties of a single question.
+    *   **Params**: `quizId` (UUID), `questionId` (String)
+    *   **Request Body**:
+        ```json
+        {
+          "title": "What is the biggest mammal on Earth?",
+          "imageUrl": "https://example.com/new-whale.jpg"
+        }
+        ```
+    *   **Responses**:
+        *   `200 OK`: Returns `{ "question": ... }` with the updated question object.
+        *   `404 Not Found`: The quiz or question was not found or is not owned by the user.
+
+*   **DELETE /quizzes/:quizId/questions/:questionId**
+    *   Deletes a question from a quiz.
+    *   **Params**: `quizId` (UUID), `questionId` (String)
+    *   **Responses**:
+        *   `204 No Content`: The question was deleted successfully.
+        *   `404 Not Found`: The quiz or question was not found or is not owned by the user.
+
+### Answers
+
+*   **POST /quizzes/:quizId/questions/:questionId/answers**
+    *   Adds a new answer to an existing question.
+    *   **Params**: `quizId` (UUID), `questionId` (String)
+    *   **Request Body**:
+        ```json
+        {
+          "text": "Sperm Whale",
+          "isCorrect": false
+        }
+        ```
+    *   **Responses**:
+        *   `201 Created`: Returns `{ "answer": ... }` with the newly created answer object.
+        *   `404 Not Found`: The quiz or question was not found or is not owned by the user.
+
+*   **PATCH /quizzes/:quizId/questions/:questionId/answers/:answerId**
+    *   Updates the properties of a single answer.
+    *   **Params**: `quizId` (UUID), `questionId` (String), `answerId` (String)
+    *   **Request Body**:
+        ```json
+        {
+          "text": "Sperm Whale (Incorrect)",
+          "isCorrect": false
+        }
+        ```
+    *   **Responses**:
+        *   `200 OK`: Returns `{ "answer": ... }` with the updated answer object.
+        *   `404 Not Found`: The quiz, question, or answer was not found or is not owned by the user.
+
+*   **DELETE /quizzes/:quizId/questions/:questionId/answers/:answerId**
+    *   Deletes an answer from a question.
+    *   **Params**: `quizId` (UUID), `questionId` (String), `answerId` (String)
+    *   **Responses**:
+        *   `204 No Content`: The answer was deleted successfully.
+        *   `400 Bad Request`: Deletion is not allowed if it would leave the question with fewer than two answers.
+        *   `404 Not Found`: The quiz, question, or answer was not found or is not owned by the user.

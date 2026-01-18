@@ -24,34 +24,47 @@ The `RefreshToken` model represents an authenticated user's session on a specifi
 *   **`createdAt`** (`DateTime`): The timestamp when the session was created.
 *   **`updatedAt`** (`DateTime`): The timestamp of the last update, which corresponds to the last time the token was rotated.
 
-## Quiz Model
+## Quiz, Question, and Answer Models
 
-The `Quiz` model represents a collection of questions created by a user.
+The quiz domain is now modeled using three distinct relational tables: `Quiz`, `Question`, and `Answer`. This provides a more structured and scalable way to manage quiz content compared to the previous JSON-based approach.
+
+### Quiz Model
+
+The `Quiz` model represents the top-level container for a quiz.
 
 *   **`id`** (`String` / `uuid`): A unique identifier for the quiz.
+*   **`subId`** (`String`): A short, human-readable ID (e.g., "K8BMY") used as a prefix for generating unique IDs for its child questions and answers.
 *   **`title`** (`String`): The title of the quiz.
 *   **`userId`** (`String`): A foreign key linking to the `User` who created the quiz.
 *   **`createdAt`** (`DateTime`): The timestamp when the quiz was first created.
 *   **`updatedAt`** (`DateTime`): The timestamp of the last update to the quiz.
-*   **`questions`** (`Json`): A JSONB column in the database that stores the quiz's content. The backend validates and expects this field to be an array of `Question` objects.
+*   **Relations**:
+    *   A `Quiz` has many `Question` records.
 
-### Structure of the `questions` Field
+### Question Model
 
-The `questions` JSON field contains an array of objects, where each object represents a single question and has the following structure:
+The `Question` model represents a single question within a `Quiz`.
 
-```typescript
-{
-  "questionId": "string",       // Unique ID for the question
-  "title": "string",            // The text of the question
-  "imageUrl": "string" | null,  // Optional URL for an image related to the question
-  "correctOptionId": "string",  // The `optionId` of the correct answer
-  "options": [                  // An array of 2 or more options
-    {
-      "optionId": "string",       // Unique ID for the option
-      "text": "string",           // The text of the option
-      "imageUrl": "string" | null // Optional URL for an image related to the option
-    }
-  ]
-}
-```
-This structure is enforced by the application's service layer and Zod schemas, ensuring data integrity even though the database schema itself is flexible with a `Json` type.
+*   **`id`** (`String`): A unique identifier for the question, composed of the parent quiz's `subId` and a generated short ID (e.g., "K8BMY-1AYTG").
+*   **`title`** (`String`): The text content of the question.
+*   **`imageUrl`** (`String` | `null`): An optional URL for an image related to the question.
+*   **`quizId`** (`String`): A foreign key linking to the `Quiz` this question belongs to.
+*   **`createdAt`** (`DateTime`): The timestamp when the question was created.
+*   **`updatedAt`** (`DateTime`): The timestamp of the last update.
+*   **Relations**:
+    *   A `Question` belongs to one `Quiz`.
+    *   A `Question` has many `Answer` records.
+
+### Answer Model
+
+The `Answer` model represents a single answer option for a `Question`.
+
+*   **`id`** (`String`): A unique identifier for the answer, composed of the parent question's ID and a generated short ID (e.g., "K8BMY-1AYTG-PCAJ3").
+*   **`text`** (`String`): The text content of the answer.
+*   **`imageUrl`** (`String` | `null`): An optional URL for an image related to the answer.
+*   **`isCorrect`** (`Boolean`): A flag indicating whether this is the correct answer for the question.
+*   **`questionId`** (`String`): A foreign key linking to the `Question` this answer belongs to.
+*   **`createdAt`** (`DateTime`): The timestamp when the answer was created.
+*   **`updatedAt`** (`DateTime`): The timestamp of the last update.
+*   **Relations**:
+    *   An `Answer` belongs to one `Question`.

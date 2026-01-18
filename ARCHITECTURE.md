@@ -51,7 +51,7 @@ Este fluxo é acionado quando o Access Token expira e o cliente precisa de um no
     -   Se válido, o payload é decodificado e anexado a `request.user`.
 3.  **Execução do Handler da Rota**: Com o usuário autenticado, o handler da rota executa sua lógica de negócio.
 
-*(Os fluxos de criação, modificação e exclusão de quizzes permanecem os mesmos, mas agora dependem do Access Token enviado via `Bearer` token.)*
+*(Nota sobre o fluxo de Quizzes: A arquitetura de dados para quizzes foi refatorada de um campo JSON monolítico para um modelo relacional (Quiz -> Question -> Answer). A API agora suporta tanto a criação em massa de um quiz completo quanto endpoints granulares para criar, modificar e excluir questões e respostas individualmente, oferecendo maior flexibilidade e alinhamento com os princípios REST.)*
 
 ## Decisões Arquiteturais Chave
 

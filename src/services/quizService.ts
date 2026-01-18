@@ -1,11 +1,31 @@
 import { prisma } from "../lib/prisma";
 import { generateShortId } from "../lib/utils";
-import { CreateQuizBody, UpdateQuizBody } from "../schemas/quiz";
+import { CreateQuizBody, UpdateQuizBody, CreateQuestionBody, UpdateQuestionBody, CreateAnswerBody, UpdateAnswerBody } from "../schemas/quiz";
+
+// Helper function to find a quiz and verify ownership
+async function findQuizAndVerifyOwnership(userId: string, quizId: string) {
+    const quiz = await prisma.quiz.findUnique({
+        where: { id: quizId },
+        include: { questions: { include: { answers: true } } },
+    });
+
+    if (!quiz || quiz.userId !== userId) {
+        return null;
+    }
+    return quiz;
+}
 
 export async function getAllQuizzes(userId: string) {
     return prisma.quiz.findMany({
         where: {
             userId,
+        },
+        include: {
+            questions: {
+                include: {
+                    answers: true,
+                },
+            },
         },
     });
 }
@@ -15,66 +35,66 @@ export async function getQuizById(id: string) {
         where: {
             id,
         },
+        include: {
+            questions: {
+                include: {
+                    answers: true,
+                },
+            },
+        },
     });
 }
 
 /**
- * Creates a new quiz and stores it in the database.
- *
- * This function takes the quiz data from the request body, which includes the title
- * and a list of questions. Each question has a title, an array of options, and the
- * index of the correct option.
- *
- * The function performs the following transformations:
- * 1. Generates a short, unique `subId` for the quiz for user-facing identification.
- * 2. Maps over each question in the input:
- *    a. Generates a unique `questionId` for each question, prefixed with the quiz's `subId`.
- *    b. Maps over each option for the question:
- *       i. Generates a unique `optionId` for each option, prefixed with the `questionId`.
- *       ii. Returns the option text and the new `optionId`.
- *    c. Determines the `correctOptionId` by using the `correctOptionIndex` from the
- *       input to look up the newly generated `optionId` in the transformed options array.
- *    d. Returns the transformed question, including the new IDs and the `correctOptionId`.
- * 3. Creates the quiz in the database with the transformed data, associating it with the `userId`.
+ * Creates a new quiz and stores it in the database using a single, atomic nested write.
+ * This is the robust and idiomatic way to create a quiz with its questions and answers.
  *
  * @param data - The quiz data, conforming to the `CreateQuizBody` schema.
  * @param userId - The ID of the user creating the quiz.
  * @returns The newly created quiz object from the database.
  */
 export async function createQuiz(data: CreateQuizBody, userId: string) {
-    const subId = generateShortId(); // Generate a short ID for the quiz itself.
+    const subId = generateShortId();
 
-    const parsedData = {
-        ...data,
-        questions: data.questions.map((question) => {
-            const questionId = `${subId}-${generateShortId()}`; // Generate a unique ID for the question.
+    const questionsData = data.questions.map((question) => {
+        const questionId = `${subId}-${generateShortId()}`;
+        const optionsWithIds = question.options.map((option) => ({
+            id: `${questionId}-${generateShortId()}`,
+            text: option.text,
+            imageUrl: option.imageUrl,
+        }));
+        const correctOptionId = optionsWithIds[question.correctOptionIndex]?.id;
 
-            // Transform options and generate their unique IDs.
-            const optionsWithIds = question.options.map((option) => ({
-                ...option,
-                optionId: `${questionId}-${generateShortId()}`, // Generate a unique ID for the option.
-            }));
-
-            // Find the correct option's ID using the index provided in the input.
-            const correctOptionId =
-                optionsWithIds[question.correctOptionIndex]?.optionId;
-
-            // Refine the question object to be stored in the database.
-            const { correctOptionIndex, ...remaningQuestionData } = question;
-
-            return {
-                ...remaningQuestionData,
-                questionId,
-                options: optionsWithIds,
-                correctOptionId,
-            };
-        }),
-    };
+        return {
+            id: questionId,
+            title: question.title,
+            imageUrl: question.imageUrl,
+            answers: {
+                create: optionsWithIds.map((opt) => ({
+                    id: opt.id,
+                    text: opt.text,
+                    imageUrl: opt.imageUrl,
+                    isCorrect: opt.id === correctOptionId,
+                })),
+            },
+        };
+    });
 
     return prisma.quiz.create({
         data: {
-            ...parsedData,
+            title: data.title,
             userId,
+            subId,
+            questions: {
+                create: questionsData,
+            },
+        },
+        include: {
+            questions: {
+                include: {
+                    answers: true,
+                },
+            },
         },
     });
 }
@@ -100,4 +120,164 @@ export async function deleteQuiz(id: string, userId: string) {
             userId,
         },
     });
+}
+
+// Granular Question Management Services
+export async function createQuestion(userId: string, quizId: string, data: CreateQuestionBody) {
+    const quiz = await findQuizAndVerifyOwnership(userId, quizId);
+    if (!quiz) return null;
+
+    return prisma.$transaction(async (prisma) => {
+        const questionId = `${quiz.subId}-${generateShortId()}`;
+
+        const answersToCreate = data.answers.map((answer) => ({
+            id: `${questionId}-${generateShortId()}`,
+            text: answer.text,
+            imageUrl: answer.imageUrl,
+            isCorrect: answer.isCorrect,
+        }));
+
+        const question = await prisma.question.create({
+            data: {
+                id: questionId,
+                title: data.title,
+                imageUrl: data.imageUrl,
+                quizId: quiz.id,
+                answers: {
+                    createMany: {
+                        data: answersToCreate,
+                    },
+                },
+            },
+            include: { answers: true },
+        });
+
+        // Ensure only one correct answer
+        if (answersToCreate.some(a => a.isCorrect)) {
+            await prisma.answer.updateMany({
+                where: {
+                    questionId: question.id,
+                    id: { not: answersToCreate.find(a => a.isCorrect)?.id },
+                },
+                data: { isCorrect: false },
+            });
+        }
+
+        return question;
+    });
+}
+
+export async function updateQuestion(userId: string, quizId: string, questionId: string, data: UpdateQuestionBody) {
+    const quiz = await findQuizAndVerifyOwnership(userId, quizId);
+    if (!quiz) return null;
+
+    const question = await prisma.question.findUnique({ where: { id: questionId } });
+    if (!question || question.quizId !== quiz.id) return null;
+
+    return prisma.question.update({
+        where: { id: questionId },
+        data: {
+            title: data.title,
+            imageUrl: data.imageUrl,
+        },
+        include: { answers: true },
+    });
+}
+
+export async function deleteQuestion(userId: string, quizId: string, questionId: string) {
+    const quiz = await findQuizAndVerifyOwnership(userId, quizId);
+    if (!quiz) return null;
+
+    const question = await prisma.question.findUnique({ where: { id: questionId } });
+    if (!question || question.quizId !== quiz.id) return null;
+
+    const { count } = await prisma.question.deleteMany({
+        where: { id: questionId, quizId: quiz.id },
+    });
+    return { count };
+}
+
+// Granular Answer Management Services
+export async function createAnswer(userId: string, quizId: string, questionId: string, data: CreateAnswerBody) {
+    const quiz = await findQuizAndVerifyOwnership(userId, quizId);
+    if (!quiz) return null;
+
+    const question = await prisma.question.findUnique({
+        where: { id: questionId },
+        include: { answers: true },
+    });
+    if (!question || question.quizId !== quiz.id) return null;
+
+    if (data.isCorrect) {
+        // Unset other correct answers if this one is being set as correct
+        await prisma.answer.updateMany({
+            where: { questionId: question.id, isCorrect: true },
+            data: { isCorrect: false },
+        });
+    }
+
+    const answerId = `${question.id}-${generateShortId()}`;
+    return prisma.answer.create({
+        data: {
+            id: answerId,
+            text: data.text,
+            imageUrl: data.imageUrl,
+            isCorrect: data.isCorrect,
+            questionId: question.id,
+        },
+    });
+}
+
+export async function updateAnswer(userId: string, quizId: string, questionId: string, answerId: string, data: UpdateAnswerBody) {
+    const quiz = await findQuizAndVerifyOwnership(userId, quizId);
+    if (!quiz) return null;
+
+    const question = await prisma.question.findUnique({
+        where: { id: questionId },
+        include: { answers: true },
+    });
+    if (!question || question.quizId !== quiz.id) return null;
+
+    const answer = await prisma.answer.findUnique({ where: { id: answerId } });
+    if (!answer || answer.questionId !== question.id) return null;
+
+    if (data.isCorrect) {
+        // If this answer is being set as correct, unset others
+        await prisma.answer.updateMany({
+            where: { questionId: question.id, id: { not: answerId }, isCorrect: true },
+            data: { isCorrect: false },
+        });
+    }
+
+    return prisma.answer.update({
+        where: { id: answerId },
+        data: {
+            text: data.text,
+            imageUrl: data.imageUrl,
+            isCorrect: data.isCorrect,
+        },
+    });
+}
+
+export async function deleteAnswer(userId: string, quizId: string, questionId: string, answerId: string) {
+    const quiz = await findQuizAndVerifyOwnership(userId, quizId);
+    if (!quiz) return null;
+
+    const question = await prisma.question.findUnique({
+        where: { id: questionId },
+        include: { answers: true },
+    });
+    if (!question || question.quizId !== quiz.id) return null;
+
+    if (question.answers.length <= 2) { // Ensure at least 2 answers remain
+        return { count: 0, error: "A question must have at least two answers." };
+    }
+
+    const answer = await prisma.answer.findUnique({ where: { id: answerId } });
+    if (!answer || answer.questionId !== question.id) return null;
+
+    const { count } = await prisma.answer.deleteMany({
+        where: { id: answerId, questionId: question.id },
+    });
+    return { count };
 }
