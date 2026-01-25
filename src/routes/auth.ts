@@ -61,7 +61,7 @@ export async function authRoutes(app: FastifyInstance) {
             }
         },
         async (request, reply) => {
-            const refreshTokenCookie = request.cookies.untrivially_refresh_token;
+            const refreshTokenCookie = request.cookies.untrivial_refresh_token;
 
             if (!refreshTokenCookie) {
                 return reply.status(401).send({ message: 'Refresh token not found.' });
@@ -73,7 +73,7 @@ export async function authRoutes(app: FastifyInstance) {
             // If token is not found, it's invalid, expired, or has been used before (theft attempt)
             if (!dbToken) {
                 // For extra security, you could clear the cookie to force logout
-                reply.clearCookie("untrivially_refresh_token", {
+                reply.clearCookie("untrivial_refresh_token", {
                     path: "/",
                     httpOnly: true,
                     secure: process.env.NODE_ENV === "production",
@@ -109,7 +109,7 @@ export async function authRoutes(app: FastifyInstance) {
             );
 
             // 4. Set the new refresh token in the cookie
-            reply.setCookie("untrivially_refresh_token", newRefreshToken, {
+            reply.setCookie("untrivial_refresh_token", newRefreshToken, {
                 path: "/",
                 httpOnly: true,
                 secure: process.env.NODE_ENV === "production",
@@ -190,7 +190,7 @@ export async function authRoutes(app: FastifyInstance) {
                 request.ip
             );
 
-            reply.setCookie("untrivially_refresh_token", refreshToken, {
+            reply.setCookie("untrivial_refresh_token", refreshToken, {
                 path: "/",
                 httpOnly: true,
                 secure: process.env.NODE_ENV === "production",
@@ -222,13 +222,13 @@ export async function authRoutes(app: FastifyInstance) {
             },
         },
         async (request, reply) => {
-            const refreshTokenCookie = request.cookies.untrivially_refresh_token;
+            const refreshTokenCookie = request.cookies.untrivial_refresh_token;
 
             if (refreshTokenCookie) {
                 await sessionService.deleteRefreshToken(refreshTokenCookie);
             }
 
-            reply.clearCookie('untrivially_refresh_token', {
+            reply.clearCookie('untrivial_refresh_token', {
                 path: '/',
                 httpOnly: true,
                 secure: process.env.NODE_ENV === "production",
@@ -258,7 +258,7 @@ export async function authRoutes(app: FastifyInstance) {
         onRequest: [authenticate],
     }, async (request, reply) => {
         const userId = request.user.sub;
-        const currentTokenCookie = request.cookies.untrivially_refresh_token;
+        const currentTokenCookie = request.cookies.untrivial_refresh_token;
 
         if (!currentTokenCookie) {
             // This case is unlikely if 'authenticate' middleware passed

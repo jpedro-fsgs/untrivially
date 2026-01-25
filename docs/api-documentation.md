@@ -1,6 +1,6 @@
-# Untrivially - API Documentation
+# Untrivial - API Documentation
 
-This document outlines the API endpoints for the Untrivially application.
+This document outlines the API endpoints for the Untrivial application.
 
 ## Authentication
 
@@ -8,7 +8,7 @@ The API uses a two-token system for authentication and session management to ens
 
 -   **Access Token**: A short-lived (15 minutes) JSON Web Token (JWT) that is used to access protected resources. It must be sent in the `Authorization` header of your requests using the `Bearer` scheme.
     -   Example: `Authorization: Bearer <your_access_token>`
--   **Refresh Token**: A long-lived (30 days), opaque (unreadable) token stored in a secure, `HttpOnly` cookie named `untrivially_refresh_token`. This token is used solely to obtain a new Access Token when the old one expires. Your client does not need to handle this token directly; the browser will manage it automatically.
+-   **Refresh Token**: A long-lived (30 days), opaque (unreadable) token stored in a secure, `HttpOnly` cookie named `untrivial_refresh_token`. This token is used solely to obtain a new Access Token when the old one expires. Your client does not need to handle this token directly; the browser will manage it automatically.
 
 The general flow is:
 1.  Log in via the Google OAuth endpoint.
@@ -30,7 +30,7 @@ The general flow is:
     *   This is the callback endpoint for the Google OAuth2 flow. It is not meant to be called directly by the client application.
     *   Upon successful authentication with Google, it creates a user session.
     *   **Responses**:
-        *   `200 OK`: Returns an object containing the initial `accessToken` and `user` profile, while also setting the `untrivially_refresh_token` in an `HttpOnly` cookie.
+        *   `200 OK`: Returns an object containing the initial `accessToken` and `user` profile, while also setting the `untrivial_refresh_token` in an `HttpOnly` cookie.
             ```json
             {
               "accessToken": "ey...",
@@ -45,7 +45,7 @@ The general flow is:
 
 *   **POST /auth/refresh**
     *   Renews the user's session by providing a new Access Token. This endpoint uses Refresh Token Rotation for enhanced security.
-    *   It does not require an `Authorization` header. It relies on the `untrivially_refresh_token` cookie sent by the browser.
+    *   It does not require an `Authorization` header. It relies on the `untrivial_refresh_token` cookie sent by the browser.
     *   **Responses**:
         *   `200 OK`: Returns an object containing the new `accessToken`. A new refresh token is also set in the cookie, replacing the old one.
             ```json

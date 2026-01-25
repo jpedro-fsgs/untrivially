@@ -1,4 +1,4 @@
-# Arquitetura da Aplicação: Untrivially API
+# Arquitetura da Aplicação: Untrivial API
 
 ## Estilo Arquitetural
 
@@ -24,13 +24,13 @@ Este fluxo descreve como um usuário é autenticado via Google OAuth2 e como sua
     -   O hash do Refresh Token é armazenado em uma nova entrada na tabela `RefreshTokens` no banco de dados, junto com o `userId`, `User-Agent` (`deviceInfo`) e `IP Address`.
 6.  **Resposta ao Cliente**:
     -   O **Access Token** é retornado no corpo da resposta JSON.
-    -   O **Refresh Token** é enviado ao cliente através de um cookie `HttpOnly`, seguro, chamado `untrivially_refresh_token`.
+    -   O **Refresh Token** é enviado ao cliente através de um cookie `HttpOnly`, seguro, chamado `untrivial_refresh_token`.
 
 ### 2. Fluxo de Renovação de Sessão (Refresh Token Rotation)
 
 Este fluxo é acionado quando o Access Token expira e o cliente precisa de um novo para continuar fazendo chamadas à API.
 
-1.  **Requisição de Refresh**: O cliente faz uma requisição `POST /auth/refresh`. O navegador anexa automaticamente o cookie `untrivially_refresh_token`.
+1.  **Requisição de Refresh**: O cliente faz uma requisição `POST /auth/refresh`. O navegador anexa automaticamente o cookie `untrivial_refresh_token`.
 2.  **Validação do Refresh Token**: O `sessionService` busca o hash do token recebido na tabela `RefreshTokens`.
 3.  **Detecção de Roubo/Reuso**: Se o hash do token não for encontrado, significa que o token é inválido, expirou, ou já foi usado em uma rotação anterior. O servidor retorna um erro `401 Unauthorized`, efetivamente encerrando a sessão potencialmente comprometida.
 4.  **Rotação de Tokens**: Se o token é encontrado e válido:
@@ -39,7 +39,7 @@ Este fluxo é acionado quando o Access Token expira e o cliente precisa de um no
     -   Um **novo Refresh Token** (opaco, longa duração) é gerado e seu hash é salvo no banco de dados.
 5.  **Resposta ao Cliente**:
     -   O novo Access Token é retornado no corpo da resposta JSON.
-    -   O novo Refresh Token é enviado ao cliente, substituindo o antigo no cookie `untrivially_refresh_token`.
+    -   O novo Refresh Token é enviado ao cliente, substituindo o antigo no cookie `untrivial_refresh_token`.
 
 ### 3. Fluxo de Acesso a Rotas Protegidas
 
