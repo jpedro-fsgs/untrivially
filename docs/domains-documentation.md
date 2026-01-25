@@ -1,6 +1,6 @@
-# Untrivially - Domain Model Documentation
+# Untrivial - Domain Model Documentation
 
-This document outlines the core domain models for the Untrivially application, representing the central entities of the system.
+This document outlines the core domain models for the Untrivial application, representing the central entities of the system.
 
 ## User Model
 

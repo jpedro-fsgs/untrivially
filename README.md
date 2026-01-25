@@ -1,4 +1,4 @@
-# Untrivially API
+# Untrivial API
 
 ## Visão Geral
 

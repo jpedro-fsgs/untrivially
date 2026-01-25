@@ -58,7 +58,7 @@ app.setSerializerCompiler(serializerCompiler);
 app.register(fastifySwagger, {
     openapi: {
         info: {
-            title: "Untrivially",
+            title: "Untrivial",
             description:
                 "An interactive quiz application that allows users to create, manage, and take quizzes.",
             version: "1.0.0",
@@ -114,8 +114,7 @@ app.register(authRoutes);
 app.register(quizRoutes);
 
 app.get("/", async () => {
-    return { message: "Welcome to Untrivially API!" };
-});
+          return { message: "Welcome to Untrivial API!" };});
 
 app.listen({ port: 3333, host: "0.0.0.0" }).then(() => {
     app.log.info(`This was a triumph.`);

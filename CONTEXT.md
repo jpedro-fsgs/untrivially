@@ -1,4 +1,4 @@
-# Contexto do Projeto: Untrivially API
+# Contexto do Projeto: Untrivial API
 
 ## Objetivo Principal
 

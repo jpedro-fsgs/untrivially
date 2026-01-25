@@ -1,10 +1,10 @@
-# Untrivially - Project Overview
+# Untrivial - Project Overview
 
-This document provides a high-level overview of the Untrivially project.
+This document provides a high-level overview of the Untrivial project.
 
 ## 1. Introduction
 
-Untrivially is an interactive quiz application that allows users to create, manage, and take quizzes. The application features Google authentication for user management.
+Untrivial is an interactive quiz application that allows users to create, manage, and take quizzes. The application features Google authentication for user management.
 
 ## 2. Technologies
 

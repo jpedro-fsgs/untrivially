@@ -1,4 +1,4 @@
-# Registro de Decisões Técnicas: Untrivially API
+# Registro de Decisões Técnicas: Untrivial API
 
 Este documento lista as decisões técnicas explícitas e implícitas tomadas durante o desenvolvimento da aplicação, com base na análise do código-fonte.
 
